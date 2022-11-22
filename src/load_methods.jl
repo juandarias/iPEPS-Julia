@@ -14,6 +14,26 @@ function load_sutensor_matlab(folder, filename)
     return SimpleUpdateTensor(S, [wv, wh, wv, wh])
 end
 
+function load_ctm_matlab(filepath, dims, num_tensors)
+    psi_c = h5open(filepath);
+    As = [];
+    whs = [];
+    wvs = [];
+    Cs = Matrix{Float64}[];
+    Ts = Array{Float64, 3}[];
+    for n ∈ 1:num_tensors
+        push!(whs, diag(read(psi_c["x1y$n/wh"])));
+        push!(wvs, diag(read(psi_c["x1y$n/wv"])));
+        push!(As, permutedims(read(psi_c["x1y$n/A"]), (3, 2, 5, 4, 1)));
+        for m ∈ 1:4
+            push!(Cs, read(psi_c["x1y$n/C$m"]));
+            Tibk = read(psi_c["x1y$n/T$m"]);
+            Ti = reshape(Tibk, (size(Tibk, 1), size(Tibk, 2), :))
+            push!(Ts, Ti);
+        end
+    end
+end
+
 function readBonddimension(path)
     data = h5open(path*"_observables.h5","r")
     return read(data["Diagnostics/Bond dimension"])

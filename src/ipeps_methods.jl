@@ -23,22 +23,22 @@ end
 
 
 """
-    initialize_environment!(uc::UnitCell{X}, Χ::Int64) where {X}
+    initialize_environment!(uc::UnitCell{X}) where {X}
 
-Initializes environment reduced tensors such that ket and bra layers tensors are normalized
+Initializes environment reduced tensors by contracting legs pointing outwards at each lattice site. See PRB. 84, 041108(R) 2011
 
 """
-function initialize_environment!(uc::UnitCell{X}, Χ::Int64) where {X}
+function initialize_environment!(uc::UnitCell{X}) where {X}
 
-    @info "Χ has to be a perfect square"
     cell_environment = Array{Environment{X}, 2}(undef, uc.dims);
+
     unique_tensors = unique(uc.pattern);
 
     # for unit-cell with repeating tensors
     if length(unique_tensors) != length(uc.pattern)
         for tensor_type ∈ unique_tensors
-            Cs, Ts = generate_environment_tensors(uc, Χ);
             coords = findall(t -> t == tensor_type, uc.pattern);
+            Cs, Ts = generate_environment_tensors(uc, first(coords));
             for coord in coords
                 cell_environment[coord] = Environment(Cs, Ts, Tuple(coord));
             end
@@ -47,7 +47,7 @@ function initialize_environment!(uc::UnitCell{X}, Χ::Int64) where {X}
     # if unit-cell consists of unique tensors
     else
         for i ∈ 1:uc.dims[1], j ∈ 1:uc.dims[2]
-            Cs, Ts = generate_environment_tensors(uc, Χ);
+            Cs, Ts = generate_environment_tensors(uc, CartesianIndex(i, j));
             cell_environment[i, j] = Environment(Cs, Ts, (i, j));
         end
     end
@@ -56,93 +56,34 @@ function initialize_environment!(uc::UnitCell{X}, Χ::Int64) where {X}
     uc.E = cell_environment;
 end
 
-function generate_environment_tensors_reduced(uc::UnitCell{U}, Χ::Int64) where {U}
-    D = uc.D;
-    Χsqrt = Int64(sqrt(Χ));
 
-    uc.symmetry == C4 && (C_max = 1; T_max = 1;)
-    uc.symmetry == XY && (C_max = 1; T_max = 2;)
-    uc.symmetry == UNDEF && (C_max = 4; T_max = 4;)
+function generate_environment_tensors(unitcell::UnitCell{U}, coord::CartesianIndex; fuse_bra_ket::Bool = true) where {U}
 
-    Cs = Array{U, 2}[];
-    for n ∈ 1:C_max
-        Ci = rand(U, Χsqrt, Χsqrt, 2);
+    D = unitcell.S[coord].D;
+    Aij = cast_tensor(Tensor, unitcell.S[coord].S);
+    @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij[uk, rk, dk, lk, α] * conj(Aij)[ub, rb, db, lb, α]; # Contract physical index
 
-        # Symmetrize and normalize
-        uc.symmetry == C4 && (Ci = Ci + permutedims(Ci, (2, 1, 3)));
-        Ci = Ci + conj(Ci);
-        normalize!(Ci);
+    @tensor C1[dk, db, lk, lb] := C4[α, α, β, β, dk, db, lk, lb];
+    @tensor C2[uk, ub, lk, lb] := C4[uk, ub, α, α, β, β, lk, lb];
+    @tensor C3[uk, ub, rk, rb] := C4[uk, ub, rk, rb, α, α, β, β];
+    @tensor C4[rk, rb, dk, db] := C4[α, α, rk, rb, dk, db, β, β];
 
-        # Create reduced environment tensors
-        @tensor C[k1, b1, k2, b2] := Ci[k1, k2, α] * conj(Ci)[b1, b2, α];
-        push!(Cs, reshape(C, Χ, Χ));
+    @tensor T1[rk, rb, lk, lb, dk, db] := C4[α, α, rk, rb, dk, db, lk, lb];
+    @tensor T2[uk, ub, dk, db, lk, lb] := C4[uk, ub, α, α, dk, db, lk, lb];
+    @tensor T3[rk, rb, lk, lb, uk, ub] := C4[uk, ub, rk, rb, α, α, lk, lb];
+    @tensor T4[uk, ub, dk, db, rk, rb] := C4[uk, ub, rk, rb, dk, db, α, α];
+
+
+    if fuse_bra_ket == true
+        C1 = reshape(C1, (D^2, D^2));    C2 = reshape(C2, (D^2, D^2));    C3 = reshape(C3, (D^2, D^2));    C4 = reshape(C4, (D^2, D^2));
+
+        T1 = reshape(T1, (D^2, D^2, D^2));    T2 = reshape(T2, (D^2, D^2, D^2));    T3 = reshape(T3, (D^2, D^2, D^2));    T4 = reshape(T4, (D^2, D^2, D^2));
     end
 
-    Ts = Array{U, 3}[];
-    for m ∈ 1:T_max
-        Ti = rand(U, Χsqrt, Χsqrt, D, 2);
+    Cs = [C1, C2, C3, C4];
+    Ts = [T1, T2, T3, T4];
 
-        # Symmetrize and normalize
-        uc.symmetry != UNDEF && (Ti = Ti + permutedims(Ti, (2, 1, 3, 4)));
-        Ti = Ti + conj(Ti);
-        normalize!(Ti);
-
-        # Create reduced environment tensors
-        @tensor T[k1, b1, k2, b2, kc, bc] := Ti[k1, k2, kc, α] * conj(Ti)[b1, b2, bc, α];
-
-        push!(Ts, reshape(T, Χ, Χ, D^2));
-    end
-
-    if uc.symmetry == C4
-        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
-        Ts = fill(Ts[1], 4);
-    elseif uc.symmetry == XY
-        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
-        Ts = [Ts; Ts];
-    end
-
-    return Cs,Ts
-end
-
-function generate_environment_tensors(uc::UnitCell{U}, Χ::Int64) where {U}
-    D = uc.D;
-    #Χsqrt = Int64(sqrt(Χ));
-
-    uc.symmetry == C4 && (C_max = 1; T_max = 1;)
-    uc.symmetry == XY && (C_max = 1; T_max = 2;)
-    uc.symmetry == UNDEF && (C_max = 4; T_max = 4;)
-
-    Cs = Array{U, 2}[];
-    for n ∈ 1:C_max
-        Ci = rand(U, Χ, Χ);
-
-        # Symmetrize and normalize
-        uc.symmetry == C4 && (Ci = Ci + transpose(Ci));
-        Ci = Ci + conj(Ci);
-        normalize!(Ci);
-        push!(Cs, Ci)
-    end
-
-    Ts = Array{U, 3}[];
-    for m ∈ 1:T_max
-        Ti = rand(U, Χ, Χ, D^2);
-
-        # Symmetrize and normalize
-        uc.symmetry != UNDEF && (Ti = Ti + permutedims(Ti, (2, 1, 3)));
-        Ti = Ti + conj(Ti);
-        normalize!(Ti);
-        push!(Ts, Ti);
-    end
-
-    if uc.symmetry == C4
-        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
-        Ts = fill(Ts[1], 4);
-    elseif uc.symmetry == XY
-        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
-        Ts = [Ts; Ts];
-    end
-
-    return Cs,Ts
+    return Cs, Ts
 end
 
 function prepare_su_tensor(S::SimpleUpdateTensor, gate_direction::Direction)
@@ -335,6 +276,137 @@ function implode(R::Vector{Array{T, 4}}, E::Environment) where {T}
 
     return RE
 
+end
+
+
+##############################
+# Old and to be discontinued #
+##############################
+
+function initialize_random_environment!(uc::UnitCell{X}, Χ::Int64; unique_environments::Bool = false) where {X}
+
+    cell_environment = Array{Environment{X}, 2}(undef, uc.dims);
+
+    if unique_environments == false #* uses the same environment for all tensors. Helps with convergence
+
+        Cs, Ts = generate_environment_tensors(uc, Χ);
+        for i ∈ 1:uc.dims[1], j ∈ 1:uc.dims[2]
+            cell_environment[i, j] = Environment(Cs, Ts, (i, j));
+        end
+
+    else #* for each unique tensor initializes an environment
+        unique_tensors = unique(uc.pattern);
+
+        # for unit-cell with repeating tensors
+        if length(unique_tensors) != length(uc.pattern)
+            for tensor_type ∈ unique_tensors
+                Cs, Ts = generate_environment_tensors(uc, Χ);
+                coords = findall(t -> t == tensor_type, uc.pattern);
+                for coord in coords
+                    cell_environment[coord] = Environment(Cs, Ts, Tuple(coord));
+                end
+            end
+
+        # if unit-cell consists of unique tensors
+        else
+            for i ∈ 1:uc.dims[1], j ∈ 1:uc.dims[2]
+                Cs, Ts = generate_environment_tensors(uc, Χ);
+                cell_environment[i, j] = Environment(Cs, Ts, (i, j));
+            end
+        end
+    end
+
+    # Initializes field
+    uc.E = cell_environment;
+end
+
+function generate_random_environment_reduced(uc::UnitCell{U}, Χ::Int64) where {U}
+    D = uc.D;
+    Χsqrt = Int64(sqrt(Χ));
+
+    uc.symmetry == C4 && (C_max = 1; T_max = 1;)
+    uc.symmetry == XY && (C_max = 1; T_max = 2;)
+    uc.symmetry == UNDEF && (C_max = 4; T_max = 4;)
+
+    Cs = Array{U, 2}[];
+    for n ∈ 1:C_max
+        Ci = rand(U, Χsqrt, Χsqrt, 2);
+
+        # Symmetrize and normalize
+        uc.symmetry == C4 && (Ci = Ci + permutedims(Ci, (2, 1, 3)));
+        Ci = Ci + conj(Ci);
+        normalize!(Ci);
+
+        # Create reduced environment tensors
+        @tensor C[k1, b1, k2, b2] := Ci[k1, k2, α] * conj(Ci)[b1, b2, α];
+        push!(Cs, reshape(C, Χ, Χ));
+    end
+
+    Ts = Array{U, 3}[];
+    for m ∈ 1:T_max
+        Ti = rand(U, Χsqrt, Χsqrt, D, 2);
+
+        # Symmetrize and normalize
+        uc.symmetry != UNDEF && (Ti = Ti + permutedims(Ti, (2, 1, 3, 4)));
+        Ti = Ti + conj(Ti);
+        normalize!(Ti);
+
+        # Create reduced environment tensors
+        @tensor T[k1, b1, k2, b2, kc, bc] := Ti[k1, k2, kc, α] * conj(Ti)[b1, b2, bc, α];
+
+        push!(Ts, reshape(T, Χ, Χ, D^2));
+    end
+
+    if uc.symmetry == C4
+        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
+        Ts = fill(Ts[1], 4);
+    elseif uc.symmetry == XY
+        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
+        Ts = [Ts; Ts];
+    end
+
+    return Cs,Ts
+end
+
+function generate_random_environment(uc::UnitCell{U}, Χ::Int64) where {U}
+    D = uc.D;
+    #Χsqrt = Int64(sqrt(Χ));
+
+    uc.symmetry == C4 && (C_max = 1; T_max = 1;)
+    uc.symmetry == XY && (C_max = 1; T_max = 2;)
+    uc.symmetry == UNDEF && (C_max = 4; T_max = 4;)
+
+    Cs = Array{U, 2}[];
+    for n ∈ 1:C_max
+        Ci = rand(U, Χ, Χ);
+
+        # Symmetrize and normalize
+        uc.symmetry == C4 && (Ci = Ci + transpose(Ci));
+        Ci = Ci + conj(Ci);
+        Ci = Ci/opnorm(Ci);
+        push!(Cs, Ci)
+    end
+
+    Ts = Array{U, 3}[];
+    for m ∈ 1:T_max
+        Ti = rand(U, Χ, Χ, D^2);
+
+        # Symmetrize and normalize
+        uc.symmetry != UNDEF && (Ti = Ti + permutedims(Ti, (2, 1, 3)));
+        Ti = Ti + conj(Ti);
+        normalize!(Ti);
+        push!(Ts, Ti);
+    end
+
+    if uc.symmetry == C4
+        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
+        Ts = fill(Ts[1], 4);
+    elseif uc.symmetry == XY
+        Cs = [Cs[1], Cs[1], Cs[1], collect(transpose(Cs[1]))];
+        Ts = [Ts; Ts];
+    end
+
+    return Cs,Ts
 end
 
 #=

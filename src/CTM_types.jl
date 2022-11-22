@@ -1,4 +1,4 @@
-
+@warn "Debugging types present in projectors types"
 
 @enum Direction UP=1 RIGHT DOWN LEFT VERTICAL HORIZONTAL
 
@@ -9,6 +9,10 @@ abstract type TwoCornersSym <: Renormalization end # DOI: 10.1103/PhysRevB.80.09
 abstract type TwoCorners <: Renormalization end # DOI: 10.1103/PhysRevLett.113.046402
 abstract type TwoCornersSimple <: Renormalization end # DOI: 10.1103/PhysRevLett.113.046402
 
+#! debug
+abstract type Start <: Renormalization end
+abstract type EachMove <: Renormalization end
+abstract type EachMoveCirc <: Renormalization end
 
 abstract type ConvergenceCriteria end
 struct OnlyCorners <: ConvergenceCriteria end

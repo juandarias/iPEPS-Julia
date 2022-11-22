@@ -8,6 +8,9 @@ module ipeps_ctm
     import Combinatorics: permutations
     using TensorOperations
 
+    #! Debug
+    import UnicodePlots: heatmap, scatterplot
+
 
     ###############
     # Definitions #
@@ -15,6 +18,7 @@ module ipeps_ctm
 
     abstract type Simulation end
     abstract type Hamiltonian end
+    SvC1 = [];
 
     ###########
     # Exports #
@@ -41,14 +45,21 @@ module ipeps_ctm
 
     #= CTM types =#
     export Direction, UP, RIGHT, DOWN, LEFT, VERTICAL, HORIZONTAL # CTM moves and legs direction
-    export Renormalization, Projectors, TwoCorners, TwoCornersSimple, HalfSystem # Projectors
+    export Renormalization, Projectors, TwoCorners, TwoCornersSimple, HalfSystem, Start, EachMove, EachMoveCirc # Projectors
     export ConvergenceCriteria, OnlyCorners, Full
 
     #= CTM methods =#
     export update_environment!
     export do_ctm_iteration!
     export calc_projectors!
+
+    #! Debug
     export factorize_rho
+    export dctm_move!
+    export update_tensors!
+    #! Debug
+
+
 
     #= General methods =#
     export cast_tensor, cast_tensor!

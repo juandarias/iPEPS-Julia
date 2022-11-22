@@ -31,8 +31,9 @@ function cast_tensor(::Type{ReducedTensor}, S::SimpleUpdateTensor{T}) where {T}
 
     @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := L[uk, rk, dk, lk, α] * conj(L)[ub, rb, db, lb, α]
 
-    R.R = reshape(LLdag, (S.D^2, S.D^2, S.D^2, S.D^2));
+    R.R = reshape(LLdag, (size(S.S, 1)^2, size(S.S, 2)^2, size(S.S, 3)^2, size(S.S, 4)^2));
     R.D = S.D^2;
+    R.symmetry = S.symmetry;
     return R
 end
 
