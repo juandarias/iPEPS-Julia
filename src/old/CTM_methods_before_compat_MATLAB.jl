@@ -40,14 +40,14 @@ function do_ctmrg_iteration!(
     unitcell::UnitCell,
     projectors::Projectors{EachMove}, Χ::Int64)
 
-    Nx = unitcell.dims[1];
-    Ny = unitcell.dims[2];
+    Ni = unitcell.dims[1];
+    Nj = unitcell.dims[2];
 
 
     #= Left move for every unit-cell tensor. Sweeps from left to right, column by column =#
-    for i ∈ 1:Nx
+    for i ∈ 1:Ni
         # 1) Calculate all projectors along the column, i.e. all P_(i, j+n) for fixed j+n
-        for j ∈ 1:Ny
+        for j ∈ 1:Nj
             calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), LEFT, Χ); # P_(i,j)
             #@info "Size T4 : ", size(unitcell.E[i,j].T[1])
             #@info "Size T4 alt: ", size(unitcell(Environment, CartesianIndex(i+1, j-1)).T[4])
@@ -55,48 +55,48 @@ function do_ctmrg_iteration!(
         end
 
         # 2) Absorb column j+n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
-        for j ∈ 1:Ny
+        for j ∈ 1:Nj
             do_ctm_move!(unitcell, projectors, LEFT, CartesianIndex(i,j));
         end
     end
 
 
     #= Right move for every unit-cell tensor. Sweeps from left to right, column by column =#
-    for i ∈ 1:Nx
+    for i ∈ 1:Ni
         # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
-        for j ∈ 1:Ny
+        for j ∈ 1:Nj
             calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), RIGHT, Χ); # P_(i,j)
         end
 
         # 2) Absorb column j-n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
-        for j ∈ 1:Ny
+        for j ∈ 1:Nj
             do_ctm_move!(unitcell, projectors, RIGHT, CartesianIndex(i,j));
         end
     end
 
    #= Up move for every unit-cell tensor. Sweeps from top to bottom, row by row =#
-    for j ∈ 1:Ny
+    for j ∈ 1:Nj
         # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
-        for i ∈ 1:Nx
+        for i ∈ 1:Ni
             calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), UP, Χ); # P_(i,j)
         end
 
         # 2) Absorb row i+n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
-        for i ∈ 1:Nx
+        for i ∈ 1:Ni
             do_ctm_move!(unitcell, projectors, UP, CartesianIndex(i,j));
         end
     end
 
 
    #= Down move for every unit-cell tensor. Sweeps from top to bottom, row by row =#
-    for j ∈ 1:Ny
+    for j ∈ 1:Nj
         # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
-        for i ∈ 1:Nx
+        for i ∈ 1:Ni
             calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), DOWN, Χ); # P_(i,j)
         end
 
         # 2) Absorb row i-n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
-        for i ∈ 1:Nx
+        for i ∈ 1:Ni
             do_ctm_move!(unitcell, projectors, DOWN, CartesianIndex(i,j));
         end
     end
@@ -105,28 +105,30 @@ function do_ctmrg_iteration!(
 end
 
 
-function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Direction, loc::CartesianIndex)
-    E_loc = unitcell(Environment, loc);
-    R_loc = unitcell(ReducedTensor, loc);
+function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Direction, ij::CartesianIndex)
+    E_loc = unitcell(Environment, ij);
+    R_loc = unitcell(ReducedTensor, ij);
 
+    Ni = unitcell.dims[1];
+    Nj = unitcell.dims[2];
 
     if direction == LEFT
 
         """
-        C4(x-1,y)  --  T1(x,y) --
-            |             |
+        C̃4 = C4(i,j-1)  --  T1(i,j) --
+                 |             |
 
 
-            |             |
-        T4(x-1,y)  --   R(x,y) --
-            |             |
+                 |             |
+        T̃4 = T4(i,j-1)  --   R(i,j) --
+                 |             |
 
 
-            |             |
-        C3(x-1,y)  --  T3(x,y) --
+                 |             |
+        C̃3 = C3(i,j-1)  --  T3(i,j) --
         """
 
-        E_add = unitcell(Environment, loc + CartesianIndex(-1, 0));
+        E_add = unitcell(Environment, ij + CartesianIndex(-1, 0));
 
         # Grow environment
         @tensor C4T1[re, de, dc] := E_add.C[4][α, de] * E_loc.T[1][re, α, dc]
@@ -138,34 +140,47 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         C3T3 = reshape(C3T3, (:, size(C3T3, 3)));
 
         # Renormalize
+        ij[2] == 1 ? i_1j = CartesianIndex(ij[1], Nj) : i_1j = CartesianIndex(ij[1], ij[2] - 1);
+        #ij[1] == 1 ? i_1j = CartesianIndex(Ni, ij[2]) : i_1j = CartesianIndex(ij[1] - 1, ij[2]);
 
-        P̃ = projectors(LEFT, loc)[1];
-        P = projectors(LEFT, loc + CartesianIndex(0, -1))[2];
+        #= @info "Loc, $ij"
+        @info "Locprev , $i_1j" =#
 
-        C̃4 = C4T1 * P̃; #(r, d)
-        C̃3 = P * C3T3; #(u, r)
-        @tensor T̃4[ue, de, rc] := P[ue, α] * T4A[α, β, rc] * P̃[β, de];
+        C̃4 = C4T1 * projectors.Pl[ij][1]; #(r, d)
+        C̃3 = projectors.Pl[i_1j][2] * C3T3; #(u, r)
+        @tensor T̃4[ue, de, rc] := projectors.Pl[i_1j][2][ue, α] * T4A[α, β, rc] * projectors.Pl[ij][1][β, de];
 
+        _, sP, _ = svd(projectors.Pl[i_1j][2]);
+        _, sPt, _ = svd(projectors.Pl[ij][1]);
+
+        #= @info "##########Left move############"
+        @info "Size T4 before", size(E_loc.T[4])
+        @info "Size Pt", size(projectors.Pl[ij][1])
+        @info "Size P", size(projectors.Pl[i_1j][2])
+        @info "Size T4 after", size(T̃4) =#
+
+        #=@info "SVS Pt", round.(sPt[1:5]/maximum(sPt), sigdigits=5)
+        @info "SVS P", round.(sP[1:5]/maximum(sP), sigdigits=5) =#
 
         # Update tensors environment
-        update_tensors!(unitcell, [C̃3, T̃4, C̃4], LEFT, loc);
+        update_tensors!(unitcell, [C̃3, T̃4, C̃4], LEFT, ij);
 
     elseif direction == RIGHT
 
         """
-        -- T1(x,y)  --    C1(x+1,y)
+        -- T1(i,j)  --    C1(i,j+1)
             |                 |
 
             |                 |
-        -- R(x,y)   --    T2(x+1,y)
+        -- R(i,j)   --    T2(i,j+1)
             |                 |
 
             |                 |
-        -- T3(x,y)  --   C2(x+1,y)
+        -- T3(i,j)  --   C2(i,j+1)
 
         """
 
-        E_add = unitcell(Environment, loc + CartesianIndex(1, 0));
+        E_add = unitcell(Environment, ij + CartesianIndex(1, 0));
 
         # Grow environment
         @tensor C1T1[de, dc, le] := E_add.C[1][de, α] * E_loc.T[1][α, le, dc];
@@ -177,30 +192,37 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         T2A = reshape(T2A, (prod(size(T2A)[1:2]), prod(size(T2A)[3:4]), size(T2A, 5)));
 
         # Renormalize
+        #ij[1] == 1 ? i_1j = CartesianIndex(Ni, ij[2]) : i_1j = CartesianIndex(ij[1] - 1, ij[2]);
+        ij[2] == 1 ? i_1j = CartesianIndex(ij[1], Nj) : i_1j = CartesianIndex(ij[1], ij[2]-1);
 
-        P̃ = projectors(RIGHT, loc)[1];
-        P = projectors(RIGHT, loc + CartesianIndex(0, -1))[2];
+        C̃1 = transpose(C1T1 * projectors.Pr[ij][1]); # (l, d) -> (d, l)
+        C̃2 = projectors.Pr[i_1j][2] * C2T3; # (u, l)
+        @tensor T̃2[ue, de, lc] := projectors.Pr[i_1j][2][ue, α] * T2A[α, β, lc] * projectors.Pr[ij][1][β, de];
 
-        C̃1 = transpose(C1T1 * P̃); # (l, d) -> (d, l)
-        C̃2 = P * C2T3; # (u, l)
-        @tensor T̃2[ue, de, lc] := P[ue, α] * T2A[α, β, lc] * P̃[β, de];
+
+        #= @info "##########Right move############"
+        @info "Loc right", ij
+        @info "Size T2 before", size(E_loc.T[2])
+        @info "Size Pt", size(projectors.Pr[ij][1])
+        @info "Size P", size(projectors.Pr[i_1j][2])
+        @info "Size T2 after", size(T̃2) =#
 
 
         # Update tensors environment
-        update_tensors!(unitcell, [C̃1, T̃2, C̃2], RIGHT, loc);
+        update_tensors!(unitcell, [C̃1, T̃2, C̃2], RIGHT, ij);
 
     elseif direction == UP
 
         """
-         C4(x,y-1)--      --T1(x,y-1)--     --C1(x,y-1)
+         C4(i-1,j)--      --T1(i-1,j)--     --C1(i-1,j)
             |                   |                 |
             |                   |                 |
-        T4(x,y)--          --R(x,y)--        --T2(x,y)
+        T4(i,j)--          --R(i,j)--        --T2(i,j)
             |                   |                 |
 
         """
 
-        E_add = unitcell(Environment, loc + CartesianIndex(0, -1));
+        E_add = unitcell(Environment, ij + CartesianIndex(0, -1));
 
         # Grow environment
         @tensor C4T4[re, rc, de] := E_add.C[4][re, α] * E_loc.T[4][α, de, rc];
@@ -212,29 +234,36 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         T1A = reshape(T1A, (prod(size(T1A)[1:2]), prod(size(T1A)[3:4]), size(T1A, 5)));
 
         # Renormalize
+        #ij[2] == 1 ? ij_1 = CartesianIndex(ij[1], Nj) : ij_1 = CartesianIndex(ij[1], ij[2]-1);
+        ij[1] == 1 ? ij_1 = CartesianIndex(Ni, ij[2]) : ij_1 = CartesianIndex(ij[1]-1, ij[2]);
 
-        P̃ = projectors(UP, loc)[1];
-        P = projectors(UP, loc + CartesianIndex(-1, 0))[2];
+        C̃4 = transpose(C4T4 * projectors.Pu[ij][1]); #(d,r) -> (r,d)
+        C̃1 = transpose(projectors.Pu[ij_1][2] * C1T2); #(l,d) -> (d,l)
+        @tensor T̃1[re, le, dc] := projectors.Pu[ij_1][2][le, α] * T1A[α, β, dc] * projectors.Pu[ij][1][β, re];
 
-        C̃4 = transpose(C4T4 * P̃); #(d,r) -> (r,d)
-        C̃1 = transpose(P * C1T2); #(l,d) -> (d,l)
-        @tensor T̃1[re, le, dc] := P[le, α] * T1A[α, β, dc] * P̃[β, re];
+
+        #= @info "##########up move############"
+        @info "Loc up", ij
+        @info "Size T1 before", size(E_loc.T[1])
+        @info "Size Pt", size(projectors.Pu[ij][1])
+        @info "Size P", size(projectors.Pu[ij_1][2])
+        @info "Size T1 after", size(T̃1) =#
 
         # Update tensors environment
-        update_tensors!(unitcell, [C̃4, T̃1, C̃1], UP, loc);
+        update_tensors!(unitcell, [C̃4, T̃1, C̃1], UP, ij);
 
     elseif direction == DOWN
 
         """
              |                 |                  |
-          T4(x,y)--       --R(x,y)--        --T2(x,y)
+          T4(i,j)--       --R(i,j)--        --T2(i,j)
              |                 |                  |
              |                 |                  |
-          C3(x,y+1)--    --T3(x,y+1)--      --C2(x,y+1)
+          C3(i+1,j)--    --T3(i+1,j)--      --C2(i+1,j)
 
         """
 
-        E_add = unitcell(Environment, loc + CartesianIndex(0, 1));
+        E_add = unitcell(Environment, ij + CartesianIndex(0, 1));
 
         # Grow environment
         @tensor C3T4[ue, re, rc] := E_add.C[3][α, re] * E_loc.T[4][ue, α, rc]; #! indices permuted
@@ -246,16 +275,22 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         T3A = reshape(T3A, (prod(size(T3A)[1:2]), prod(size(T3A)[3:4]), size(T3A, 5)));
 
         # Renormalize
+        #ij[2] == 1 ? ij_1 = CartesianIndex(ij[1], Nj) : ij_1 = CartesianIndex(ij[1], ij[2]-1);
+        ij[1] == 1 ? ij_1 = CartesianIndex(Ni, ij[2]) : ij_1 = CartesianIndex(ij[1]-1, ij[2]);
 
-        P̃ = projectors(DOWN, loc)[1];
-        P = projectors(DOWN, loc + CartesianIndex(-1, 0))[2];
+        C̃3 = C3T4 * projectors.Pd[ij][1]; #(u,r)
+        C̃2 = transpose(projectors.Pd[ij_1][2] * C2T2); #(l,u) -> (u,l)
+        @tensor T̃3[re, le, uc] := projectors.Pd[ij_1][2][le, α] * T3A[α, β, uc] * projectors.Pd[ij][1][β, re];
 
-        C̃3 = C3T4 * P̃; #(u,r)
-        C̃2 = transpose(P * C2T2); #(l,u) -> (u,l)
-        @tensor T̃3[re, le, uc] := P[le, α] * T3A[α, β, uc] * P̃[β, re];
+        #= @info "##########down move############"
+        @info "Loc down", ij
+        @info "Size T3 before", size(E_loc.T[3])
+        @info "Size Pt", size(projectors.Pd[ij][1])
+        @info "Size P", size(projectors.Pd[ij_1][2])
+        @info "Size T3 after", size(T̃3) =#
 
         # Update tensors environment
-        update_tensors!(unitcell, [C̃2, T̃3, C̃3], DOWN, loc);
+        update_tensors!(unitcell, [C̃2, T̃3, C̃3], DOWN, ij);
     end
 end
 
@@ -270,29 +305,39 @@ function calc_projectors_ctmrg!(
     if direction == LEFT
 
         """
-        C4(x-1,y-1) -- T1(x,y-1) --
+        C4(i-1,j-1) -- T1(i-1,j) --
             |              |
             |              |
-        T4(x-1,y)   --  R(x,y) --
+        T4(i,j-1)   --  R(i,j) --
             |              |
 
 
             |              |
-        T4(x-1,y+1)  --  R(x,y+1) --
+        T4(i+1,j-1)  --  R(i+1,j) --
             |              |
             |              |
-        C3(x-1,y+2)  --  T3(x,y+2)--
+        C3(i+2,j-1)  --  T3(i+2,j)--
 
         """
 
         # Build expanded corners
+
+        #C4 = uc(Environment, loc + CartesianIndex(-1, -1)).C[4];
+        #T1 = uc(Environment, loc  + CartesianIndex(-1, 0)).T[1];
+        #T4 = uc(Environment, loc + CartesianIndex(0, -1)).T[4];
+
         C4 = uc(Environment, loc + CartesianIndex(-1, -1)).C[4];
         T1 = uc(Environment, loc  + CartesianIndex(0, -1)).T[1];
         T4 = uc(Environment, loc + CartesianIndex(-1, 0)).T[4];
         R = uc(ReducedTensor, loc).R;
 
+        Χ = size(uc(Environment, loc).T[4], 2);
+
         @tensor Q4[ure, urc, de, dc] := C4[α, δ] * T4[δ, de, γ] * T1[ure, α, β] * R[β, urc, dc, γ];
 
+        #C3 = uc(Environment, loc + CartesianIndex(2, -1)).C[3];
+        #T3 = uc(Environment, loc + CartesianIndex(2, 0)).T[3];
+        #T4 = uc(Environment, loc + CartesianIndex(1, -1)).T[4];
         C3 = uc(Environment, loc + CartesianIndex(-1, 2)).C[3];
         T3 = uc(Environment, loc + CartesianIndex(0, 2)).T[3];
         T4 = uc(Environment, loc + CartesianIndex(-1, 1)).T[4];
@@ -306,7 +351,7 @@ function calc_projectors_ctmrg!(
         HL = Q4 * Q3;
 
         # Calculate projectors
-        Χ = size(uc(Environment, loc).T[4], 2);
+        #U, Sinvsqrt, V = factorize_rho(HL, Χ)
 
         U, Sinvsqrt, V, S = factorize_rho(HL, Χ)
         P̃ = Q3 * V * Sinvsqrt;
@@ -325,28 +370,37 @@ function calc_projectors_ctmrg!(
     elseif direction == RIGHT
 
         """
-        -- T1(x,y-1)--   C1(x+1,y-1)
+        -- T1(i-1,j)--   C1(i-1,j+1)
               |             |
               |             |
-        -- R(x,y)   --  T2(x+1,y)
+        -- R(i,j)   --  T2(i,j+1)
               |             |
 
 
               |             |
-        -- R(x,y+1)  --  T2(x+1,y+1)
+        -- R(i+1,j)  --  T2(i+1,j+1)
               |             |
               |             |
-        -- T3(x,y+2) --  C2(x+1,y+2)
+        -- T3(i+2,j) --  C2(i+2,j+1)
 
         """
 
-        # Build expanded corners
+        #= C1 = uc(Environment, loc + CartesianIndex(-1, 1)).C[1];
+        T1 = uc(Environment, loc + CartesianIndex(-1, 0)).T[1];
+        T2 = uc(Environment, loc + CartesianIndex(0, 1)).T[2]; =#
+
         C1 = uc(Environment, loc + CartesianIndex(1, -1)).C[1];
         T1 = uc(Environment, loc + CartesianIndex(0, -1)).T[1];
         T2 = uc(Environment, loc + CartesianIndex(1, 0)).T[2];
         R = uc(ReducedTensor, loc).R;
 
+        Χ = size(uc(Environment, loc).T[2], 2);
+
         @tensor Q1[ule, ulc, de, dc] := C1[α, δ] * T2[α, de, β] * T1[δ, ule, γ] * R[γ, β, dc, ulc];
+
+        #= C2 = uc(Environment, loc + CartesianIndex(2, 1)).C[2];
+        T3 = uc(Environment, loc + CartesianIndex(2, 0)).T[3];
+        T2 = uc(Environment, loc + CartesianIndex(1, 1)).T[2]; =#
 
         C2 = uc(Environment, loc + CartesianIndex(1, 2)).C[2];
         T3 = uc(Environment, loc + CartesianIndex(0, 2)).T[3];
@@ -360,14 +414,14 @@ function calc_projectors_ctmrg!(
         Q2 = reshape(Q2, (size(Q2, 1) * size(Q2, 2), :));
         HR = Q1 * Q2;
 
-        # Calculate projectors
-        Χ = size(uc(Environment, loc).T[2], 2);
-
         U, Sinvsqrt, V, S = factorize_rho(HR, Χ)
         P̃ = Q2 * V * Sinvsqrt;
         P = Sinvsqrt * U' * Q1;
 
         projectors.Pr[loc] = [P̃, P];
+
+        #@info "Loc proj right", loc
+        #@info "Size Pt", size(P̃)
 
         # Save spectra of half-system
         S_f = zeros(Χ);
@@ -377,26 +431,44 @@ function calc_projectors_ctmrg!(
     elseif direction == UP
 
         """
-         C4(x-1,y-1) --  T1(x,y-1)--     -- T1(x+1,y-1) --  C1(x+2,y-1)
-            |                |                 |                |
-            |                |                 |                |
-         T4(x-1,y)   --    R(x,y) --     --  R(x+1,y)   --   T2(x+1,y)
-             |               |                 |                |
+         C4(i-1,j-1) --  T1(i-1,j) --
+             |                |
+             |                |
+         T4(i,j-1)   --    R(i,j)  --
+             |                |
+
+
+        -- T1(i-1,j+1) --  C1(i-1,j+2)
+              |              |
+              |              |
+        -- R(i,j+1)    --  T2(i,j+2)
+              |              |
 
         """
 
-        # Build expanded corners
+        #= C4 = uc(Environment, loc + CartesianIndex(-1, -1)).C[4]; #!
+        T1 = uc(Environment, loc + CartesianIndex(-1, 0)).T[1];
+        T4 = uc(Environment, loc + CartesianIndex(0, -1)).T[4]; =#
+
         C4 = uc(Environment, loc + CartesianIndex(-1, -1)).C[4]; #!
         T1 = uc(Environment, loc + CartesianIndex(0, -1)).T[1];
         T4 = uc(Environment, loc + CartesianIndex(-1, 0)).T[4];
+
         R = uc(ReducedTensor, loc).R;
+
+        Χ = size(uc(Environment, loc).T[1], 1);
+
 
         @tensor Q4[lde, ldc, re, rc] := C4[α, δ] * T1[re, α, β] * T4[δ, lde, γ] * R[β, rc, ldc, γ];
 
+        #= C1 = uc(Environment, loc + CartesianIndex(-1, 2)).C[1];
+        T1 = uc(Environment, loc + CartesianIndex(-1, 1)).T[1];
+        T2 = uc(Environment, loc + CartesianIndex(0, 2)).T[2]; =#
 
         C1 = uc(Environment, loc + CartesianIndex(2, -1)).C[1];
         T1 = uc(Environment, loc + CartesianIndex(1, -1)).T[1];
         T2 = uc(Environment, loc + CartesianIndex(2, 0)).T[2];
+
         R = uc(ReducedTensor, loc + CartesianIndex(0, 1)).R;
 
         @tensor Q1[le, lc, rde, rdc] := C1[α, δ] * T2[α, rde, β] * T1[δ, le, γ] * R[γ, β, rdc, lc];
@@ -405,11 +477,7 @@ function calc_projectors_ctmrg!(
         Q1 = reshape(Q1, (size(Q1, 1) * size(Q1, 2), :));
         HU = Q4 * Q1;
 
-
-        # Calculate projectors
-        Χ = size(uc(Environment, loc).T[1], 1);
-
-        U, Sinvsqrt, V, S = factorize_rho(HU, Χ);
+        U, Sinvsqrt, V, S = factorize_rho(HU, Χ)
         P̃ = Q1 * V * Sinvsqrt;
         P = Sinvsqrt * U' * Q4;
 
@@ -423,22 +491,37 @@ function calc_projectors_ctmrg!(
     elseif direction == DOWN
 
         """
-            |              |                    |               |
-        T4(x-1,y)   --  R(x,y)   --     --  R(x+1,y)   --    T2(x+2,y)
-            |              |                    |               |
-            |              |                    |               |
-        C3(x-1,y+1) -- T3(x,y+1) --     -- T3(x+1,y+1) --  C2(x+2,y+1)
+            |              |
+        T4(i,j-1)   --  R(i,j)   --
+            |              |
+            |              |
+        C3(i+1,j-1) -- T3(i+1,j) --
+
+
+                |               |
+        --  R(i,j+1)   --    T2(i,j+2)
+                |               |
+                |               |
+        -- T3(i+1,j+1) --  C2(i+1,j+2)
 
         """
 
+        #= C3 = uc(Environment, loc + CartesianIndex(1, -1)).C[3];
+        T3 = uc(Environment, loc + CartesianIndex(1, 0)).T[3];
+        T4 = uc(Environment, loc + CartesianIndex(0, -1)).T[4]; =#
 
         C3 = uc(Environment, loc + CartesianIndex(-1, 1)).C[3];
         T3 = uc(Environment, loc + CartesianIndex(0, 1)).T[3];
         T4 = uc(Environment, loc + CartesianIndex(-1, 0)).T[4];
         R = uc(ReducedTensor, loc).R;
 
+        Χ = size(uc(Environment, loc).T[3], 1);
 
         @tensor Q3[lue, luc, re, rc] := C3[α, δ] * T4[lue, α, β] * T3[re, δ, γ] * R[luc, rc, γ, β]
+
+        #= C2 = uc(Environment, loc + CartesianIndex(1, 2)).C[2];
+        T3 = uc(Environment, loc + CartesianIndex(1, 1)).T[3];
+        T2 = uc(Environment, loc + CartesianIndex(0, 2)).T[2]; =#
 
         C2 = uc(Environment, loc + CartesianIndex(2, 1)).C[2];
         T3 = uc(Environment, loc + CartesianIndex(1, 1)).T[3];
@@ -452,8 +535,6 @@ function calc_projectors_ctmrg!(
         Q3 = reshape(Q3, (size(Q3, 1) * size(Q3, 2), :));
         HD = Q3 * Q2;
 
-
-        Χ = size(uc(Environment, loc).T[3], 1);
         U, Sinvsqrt, V, S = factorize_rho(HD, Χ)
         P̃ = Q2 * V * Sinvsqrt;
         P = Sinvsqrt * U' * Q3;

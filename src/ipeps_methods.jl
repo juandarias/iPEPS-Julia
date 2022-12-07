@@ -60,24 +60,31 @@ end
 function generate_environment_tensors(unitcell::UnitCell{U}, coord::CartesianIndex; fuse_bra_ket::Bool = true) where {U}
 
     D = unitcell.S[coord].D;
-    Aij = cast_tensor(Tensor, unitcell.S[coord].S);
-    @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij[uk, rk, dk, lk, α] * conj(Aij)[ub, rb, db, lb, α]; # Contract physical index
+    Aij = cast_tensor(Tensor, unitcell.S[coord]);
+    @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij.A[uk, rk, dk, lk, α] * conj(Aij.A)[ub, rb, db, lb, α]; # Contract physical index
 
-    @tensor C1[dk, db, lk, lb] := C4[α, α, β, β, dk, db, lk, lb];
-    @tensor C2[uk, ub, lk, lb] := C4[uk, ub, α, α, β, β, lk, lb];
-    @tensor C3[uk, ub, rk, rb] := C4[uk, ub, rk, rb, α, α, β, β];
-    @tensor C4[rk, rb, dk, db] := C4[α, α, rk, rb, dk, db, β, β];
+    @tensor C1[dk, db, lk, lb] := Rij[α, α, β, β, dk, db, lk, lb];
+    @tensor C2[uk, ub, lk, lb] := Rij[uk, ub, α, α, β, β, lk, lb];
+    @tensor C3[uk, ub, rk, rb] := Rij[uk, ub, rk, rb, α, α, β, β];
+    @tensor C4[rk, rb, dk, db] := Rij[α, α, rk, rb, dk, db, β, β];
 
-    @tensor T1[rk, rb, lk, lb, dk, db] := C4[α, α, rk, rb, dk, db, lk, lb];
-    @tensor T2[uk, ub, dk, db, lk, lb] := C4[uk, ub, α, α, dk, db, lk, lb];
-    @tensor T3[rk, rb, lk, lb, uk, ub] := C4[uk, ub, rk, rb, α, α, lk, lb];
-    @tensor T4[uk, ub, dk, db, rk, rb] := C4[uk, ub, rk, rb, dk, db, α, α];
+    @tensor T1[rk, rb, lk, lb, dk, db] := Rij[α, α, rk, rb, dk, db, lk, lb];
+    @tensor T2[uk, ub, dk, db, lk, lb] := Rij[uk, ub, α, α, dk, db, lk, lb];
+    @tensor T3[rk, rb, lk, lb, uk, ub] := Rij[uk, ub, rk, rb, α, α, lk, lb];
+    @tensor T4[uk, ub, dk, db, rk, rb] := Rij[uk, ub, rk, rb, dk, db, α, α];
 
 
     if fuse_bra_ket == true
-        C1 = reshape(C1, (D^2, D^2));    C2 = reshape(C2, (D^2, D^2));    C3 = reshape(C3, (D^2, D^2));    C4 = reshape(C4, (D^2, D^2));
+        C1 = reshape(C1, (prod(size(C1)[1:2]), :));
+        C2 = reshape(C2, (prod(size(C2)[1:2]), :));
+        C3 = reshape(C3, (prod(size(C3)[1:2]), :));
+        C4 = reshape(C4, (prod(size(C4)[1:2]), :));
 
-        T1 = reshape(T1, (D^2, D^2, D^2));    T2 = reshape(T2, (D^2, D^2, D^2));    T3 = reshape(T3, (D^2, D^2, D^2));    T4 = reshape(T4, (D^2, D^2, D^2));
+        T1 = reshape(T1, (prod(size(T1)[1:2]), prod(size(T1)[3:4]), :));
+        T2 = reshape(T2, (prod(size(T2)[1:2]), prod(size(T2)[3:4]), :));
+        T3 = reshape(T3, (prod(size(T3)[1:2]), prod(size(T3)[3:4]), :));
+        T4 = reshape(T4, (prod(size(T4)[1:2]), prod(size(T4)[3:4]), :));
+
     end
 
     Cs = [C1, C2, C3, C4];

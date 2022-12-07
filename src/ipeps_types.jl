@@ -6,7 +6,7 @@
 #struct C4 <: LatticeSymmetry end
 #struct XY <: LatticeSymmetry end
 
-@enum LatticeSymmetry UNDEF C4=1 XY
+@enum LatticeSymmetry UNDEF R4=1 XY
 
 @warn "LatticeSymmetry type not properly implemented in methods"
 
@@ -16,7 +16,16 @@
 ## Arguments
 
 ## Notes
-    The indices of the environment bonds are labelled in ascending order clockwise, with the first index at 12 o'clock.
+
+    Labels of environment tensors:
+
+    C4-  -T1-  -C1
+     |    |     |
+    T4-        -T2
+     |    |     |
+    C3-  -T3-  -C2
+
+    The indices of the environment bonds are labelled in ascending order clockwise, with the first index at 12 o'clock, e.g. the corner C1 elements are labelled C1(down, left).
     The index corresponding to auxiliary bonds are always the last ones.
 """
 struct Environment{U}
@@ -31,7 +40,7 @@ struct Environment{U}
 
     function Environment(C::Vector{Array{U,2}}, T::Vector{Array{U,3}}, loc::Tuple) where {U}
         Χ = size(T[1], 1);
-        spectra = fill(zeros(Χ), 4);
+        spectra = fill(ones(Χ), 4);
         new{U}(loc, copy(C), copy(T), Χ, spectra)
     end
 end
@@ -60,7 +69,7 @@ mutable struct Tensor{T}
 
     function Tensor(Ai::Array{T,5}, symmetry::X = UNDEF) where {T, X<:LatticeSymmetry}
         D = collect(size(Ai)[1:4]);
-        d = size(Ai, 4);
+        d = size(Ai, 5);
         new{T}(Ai, D, d, symmetry);
     end
 
@@ -76,7 +85,7 @@ end
 mutable struct SimpleUpdateTensor{T}
     "The last dimension corresponds to the physical space"
     S::Array{T,5}
-    D::Int64
+    D::Vector{Int64}
     d::Int64
     "Weights (λᵢ) on auxiliary bonds, e.g. a simple update environment, such that ∑λᵢ = 1"
     #weights::Vector{Float64}
@@ -89,29 +98,30 @@ mutable struct SimpleUpdateTensor{T}
         Si::Array{T,5},
         weights::Vector{Vector{Float64}},
         symmetry::LatticeSymmetry = UNDEF) where {T}
-        D = size(Si, 1);
+        #D = size(Si, 1);
+        D = collect(size(Si)[1:4]);
         d = size(Si, 5);
         new{T}(Si, D, d, weights, symmetry);
     end
 end
 
-function SimpleUpdateTensor{T}(D::Int64, symmetry::X = UNDEF) where {T, X<:LatticeSymmetry}
+function SimpleUpdateTensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T, X<:LatticeSymmetry}
     d = 2;
 
     #= Generate symmetric tensor =#
-    A = rand(T, [D, D, D, D, d]...);
+    A = rand(T, vcat(D, d)...);
     A = symmetrize(A; symmetry = symmetry);
 
     #= Generate weights =#
     if symmetry == UNDEF
-        λi = [rand(Float64, D) for _ ∈ 1:4];
+        λi = [rand(Float64, D[n]) for n ∈ 1:4];
         λs = [λi[n]/sum(λi[n]) for n ∈ 1:4];
     elseif symmetry == XY
-        λi = [rand(Float64, D) for _ ∈ 1:2];
+        λi = [rand(Float64, D[n]) for n ∈ 1:2];
         λi = [λi[n]/sum(λi[n]) for n ∈ 1:2];
         λs = [λi; λi]
-    elseif symmetry == C4
-        λi = rand(Float64, D);
+    elseif symmetry == R4
+        λi = rand(Float64, D[1]);
         λi = λi/sum(λi);
         λs = fill(λi, 4);
     end
@@ -132,15 +142,15 @@ end
 
 mutable struct ReducedTensor{T}
     R::Array{T,4}
-    D::Int64
-    E::Environment{T}
+    D::Vector{Int64}
     symmetry::LatticeSymmetry
+    E::Environment{T}
 
     ReducedTensor{T}() where {T} = new{T}();
 
-    function ReducedTensor(R::Array{T,4}) where {T}
-        D = size(R, 1);
-        new{T}(R, D);
+    function ReducedTensor(R::Array{T,4}, symmetry) where {T}
+        D = collect(size(R));
+        new{T}(R, D, symmetry);
     end
 end
 
@@ -209,7 +219,7 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::L
 
     if length(unique_tensors) != length(pattern) # for unit-cell with repeating tensors
         for type_tensor ∈ unique_tensors
-            Si = SimpleUpdateTensor{T}(D, symmetry);
+            Si = SimpleUpdateTensor{T}(fill(D, 4), symmetry);
             coords = findall(t -> t == type_tensor, pattern);
             for coord in coords
                 S_cell[coord] = Si;
@@ -218,7 +228,7 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::L
         end
     else # if minimal unit-cell consists of no repeating tensors
         for i ∈ 1:Ni, j ∈ 1:Nj
-            S_cell[i,j] = SimpleUpdateTensor{T}(D, symmetry);
+            S_cell[i,j] = SimpleUpdateTensor{T}(fill(D, 4), symmetry);
             R_cell[i,j] = cast_tensor(ReducedTensor, S_cell[i,j]);
         end
     end
@@ -260,7 +270,8 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 1}, symmetry::L
 
 end
 
-function UnitCell(pattern::Array{Char},
+function UnitCell(
+    pattern::Array{Char},
     symmetry::LatticeSymmetry,
     R_cell::Array{ReducedTensor{T}},
     S_cell::Array{SimpleUpdateTensor{T}}) where {T}
@@ -270,6 +281,55 @@ function UnitCell(pattern::Array{Char},
 
     UnitCell(D, dims, pattern, symmetry, R_cell, S_cell);
 end
+
+
+function UnitCell(
+    pattern::Array{Char},
+    symmetry::LatticeSymmetry,
+    S_cell::Array{SimpleUpdateTensor{T}}) where {T}
+
+    dims = size(S_cell);
+    D = size(S_cell[1,1].S, 1);
+
+    R_cell = Array{ReducedTensor{T}, 2}(undef,  dims);
+
+    for i ∈ 1:dims[1], j ∈ 1:dims[2]
+        R_cell[i,j] = cast_tensor(ReducedTensor, S_cell[i,j]);
+    end
+
+    @assert "Throws a conversion error"
+
+    UnitCell(D, dims, pattern, symmetry, R_cell, S_cell);
+end
+
+function (uc::UnitCell)(::Type{T}, ij::CartesianIndex) where {T}
+
+    Ni = uc.dims[1];
+    Nj = uc.dims[2];
+
+    Ni != 1 && (ij[1] > Ni || ij[1] < 0) && (ij = CartesianIndex(mod(ij[1], Ni), ij[2]);)
+    Ni == 1 && (ij[1] > Ni || ij[1] < 0) && (ij = CartesianIndex(1, ij[2]);)
+
+    Nj != 1 && (ij[2] > Nj || ij[2] < 0) && (ij = CartesianIndex(ij[1], mod(ij[2], Nj));)
+    Nj == 1 && (ij[2] > Nj || ij[2] < 0) && (ij = CartesianIndex(ij[1], 1);)
+
+
+    ij[1] == 0 && (ij = CartesianIndex(Ni, ij[2]);)
+    ij[2] == 0 && (ij = CartesianIndex(ij[1], Nj);)
+
+
+    if T == SimpleUpdateTensor
+        return uc.S[ij]
+    elseif T == ReducedTensor
+        return uc.R[ij]
+    elseif T == Environment
+        return uc.E[ij]
+    end
+
+end
+
+
+
 
 #=
 #= Builds an unitcell of dimension `dims` from a smaller pattern of SU tensors =#

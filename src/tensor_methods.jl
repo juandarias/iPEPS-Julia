@@ -13,14 +13,13 @@ function cast_tensor!(R::ReducedTensor, S::SimpleUpdateTensor)
 
     @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := L[uk, rk, dk, lk, α] * conj(L)[ub, rb, db, lb, α]
 
-    R.R = reshape(LLdag, (S.D^2, S.D^2, S.D^2, S.D^2));
-    R.D = S.D^2;
+    R.R = reshape(LLdag, (size(S.S)[1:4]).^2);
+    R.D = (S.D).^2;
 end
 
 
 function cast_tensor(::Type{ReducedTensor}, S::SimpleUpdateTensor{T}) where {T}
 
-    R = ReducedTensor{T}();
 
     sqrtW =  [sqrt.(S.weights[n]) for n ∈ eachindex(S.weights)];
 
@@ -31,11 +30,21 @@ function cast_tensor(::Type{ReducedTensor}, S::SimpleUpdateTensor{T}) where {T}
 
     @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := L[uk, rk, dk, lk, α] * conj(L)[ub, rb, db, lb, α]
 
-    R.R = reshape(LLdag, (size(S.S, 1)^2, size(S.S, 2)^2, size(S.S, 3)^2, size(S.S, 4)^2));
-    R.D = S.D^2;
-    R.symmetry = S.symmetry;
-    return R
+    R = reshape(LLdag, (size(S.S)[1:4]).^2);
+
+    return ReducedTensor(R, S.symmetry)
 end
+
+function cast_tensor(::Type{ReducedTensor}, A::Tensor{T}) where {T}
+
+
+    @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := A.A[uk, rk, dk, lk, α] * conj(A.A)[ub, rb, db, lb, α]
+
+    R = reshape(LLdag, (size(A.A)[1:4]).^2);
+
+    return ReducedTensor(R, A.symmetry)
+end
+
 
 function cast_tensor!(A::Tensor, S::SimpleUpdateTensor)
 
@@ -46,14 +55,14 @@ function cast_tensor!(A::Tensor, S::SimpleUpdateTensor)
     @tensor A.A[u, r, d, l, p] = diagm(sqrtW[3])[d, α] * A.A[u, r, α, l, p]
     @tensor A.A[u, r, d, l, p] = diagm(sqrtW[4])[l, α] * A.A[u, r, d, α, p]
 
-    A.D = [S.D[1], S.D[2], S.D[3], S.D[4]];
+    A.D = collect(size(S.S)[1:4]);
     A.d = S.d;
 end
 
 
-function cast_tensor(::Type{Tensor}, S::SimpleUpdateTensor{T}) where {T}
+function cast_tensor(::Type{Tensor}, S::SimpleUpdateTensor)
 
-    A = Tensor{T}();
+
     sqrtW =  [sqrt.(S.weights[n]) for n ∈ eachindex(S.weights)];
 
     @tensor X[u, r, d, l, p] := diagm(sqrtW[1])[u, α] * S.S[α, r, d, l, p]
@@ -61,12 +70,8 @@ function cast_tensor(::Type{Tensor}, S::SimpleUpdateTensor{T}) where {T}
     @tensor X[u, r, d, l, p] := diagm(sqrtW[3])[d, α] * X[u, r, α, l, p]
     @tensor X[u, r, d, l, p] := diagm(sqrtW[4])[l, α] * X[u, r, d, α, p]
 
-    A.A = X;
-    A.D = [S.D, S.D, S.D, S.D];
-    A.d = S.d;
-    A.symmetry = S.symmetry;
 
-    return A
+    return Tensor(X, S.symmetry)
 end
 
 
@@ -87,7 +92,7 @@ function symmetrize(S::Array{T,5}; normalize::Bool = true, hermitian::Bool = tru
 
     if symmetry == XY
         S = S + permutedims(S, (3, 2, 1, 4, 5)) + permutedims(S, (1, 4, 3, 2, 5)) + permutedims(S, (3, 4, 1, 2, 5));
-    elseif symmetry == C4
+    elseif symmetry == R4
         Ssym = zero(S);
         for p ∈ permutations([1,2,3,4])
             Ssym += permutedims(S, [p; 5])

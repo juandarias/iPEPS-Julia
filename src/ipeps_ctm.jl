@@ -32,7 +32,7 @@ module ipeps_ctm
     export Tensor, SimpleUpdateTensor, ReducedTensor
     export UnitCell, Environment
     export Operator
-    export LatticeSymmetry, C4, XY, UNDEF
+    export LatticeSymmetry, R4, XY, UNDEF
 
     #= iPEPS methods =#
     export initialize_environment!, generate_environment_tensors
@@ -50,12 +50,12 @@ module ipeps_ctm
 
     #= CTM methods =#
     export update_environment!
-    export do_ctm_iteration!
-    export calc_projectors!
+    export do_ctmrg_iteration!
+    export calc_projectors_ctmrg!
 
     #! Debug
     export factorize_rho
-    export dctm_move!
+    export do_ctm_move!
     export update_tensors!
     #! Debug
 

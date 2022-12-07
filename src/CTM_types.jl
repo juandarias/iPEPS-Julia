@@ -43,9 +43,50 @@ mutable struct Projectors{T<:Renormalization}
 # ▽ : Lower subspace;  △ : Upper subspace; --◁-- : Left subspace; --▷-- : Right subspace
 # |                    |
 
-    Pl::Vector{Array{ComplexF64, 2}} # [Upper subspace, Lower subspace]
-    Pr::Vector{Array{ComplexF64, 2}} # [Upper subspace, Lower subspace]
-    Pu::Vector{Array{ComplexF64, 2}} # [Left subspace, Right subspace]
-    Pd::Vector{Array{ComplexF64, 2}} # [Left subspace, Right subspace]
+    dims::Tuple
+    Pu::Array{Vector{Array{ComplexF64, 2}}} # [Left subspace, Right subspace]
+    Pr::Array{Vector{Array{ComplexF64, 2}}} # [Upper subspace, Lower subspace]
+    Pd::Array{Vector{Array{ComplexF64, 2}}} # [Left subspace, Right subspace]
+    Pl::Array{Vector{Array{ComplexF64, 2}}} # [Upper subspace, Lower subspace]
+
     Projectors{T}() where {T<:Renormalization} = new{T}()
+
+    function Projectors{T}(unitcell::UnitCell) where {T<:Renormalization}
+
+        dims = unitcell.dims;
+        Pu = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
+        Pr = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
+        Pd = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
+        Pl = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
+
+        new{T}(dims, Pu, Pr, Pd, Pl)
+    end
+end
+
+function (proj::Projectors)(direction::Direction, loc::CartesianIndex)
+
+    Nx = proj.dims[1];
+    Ny = proj.dims[2];
+
+    Nx != 1 && (loc[1] > Nx || loc[1] < 0) && (loc = CartesianIndex(mod(loc[1], Nx), loc[2]);)
+    Nx == 1 && (loc[1] > Nx || loc[1] < 0) && (loc = CartesianIndex(1, loc[2]);)
+
+    Ny != 1 && (loc[2] > Ny || loc[2] < 0) && (loc = CartesianIndex(loc[1], mod(loc[2], Ny));)
+    Ny == 1 && (loc[2] > Ny || loc[2] < 0) && (loc = CartesianIndex(loc[1], 1);)
+
+
+    loc[1] == 0 && (loc = CartesianIndex(Nx, loc[2]);)
+    loc[2] == 0 && (loc = CartesianIndex(loc[1], Ny);)
+
+
+    if direction == UP
+        return proj.Pu[loc]
+    elseif direction == RIGHT
+        return proj.Pr[loc]
+    elseif direction == DOWN
+        return proj.Pd[loc]
+    elseif direction == LEFT
+        return proj.Pl[loc]
+    end
+
 end
