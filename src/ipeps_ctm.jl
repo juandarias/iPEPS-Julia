@@ -1,5 +1,6 @@
 module ipeps_ctm
 
+    @info "Code is not type-stable, leading to long compilation times. See https://www.juliabloggers.com/writing-type-stable-julia-code/ for tips on how to fix this!"
     ###########
     # Modules #
     ###########
@@ -7,9 +8,7 @@ module ipeps_ctm
     import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!, ishermitian
     import Combinatorics: permutations
     using TensorOperations
-
-    #! Debug
-    import UnicodePlots: heatmap, scatterplot
+    using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
 
 
     ###############
@@ -18,7 +17,7 @@ module ipeps_ctm
 
     abstract type Simulation end
     abstract type Hamiltonian end
-    SvC1 = [];
+
 
     ###########
     # Exports #
@@ -45,25 +44,21 @@ module ipeps_ctm
 
     #= CTM types =#
     export Direction, UP, RIGHT, DOWN, LEFT, VERTICAL, HORIZONTAL # CTM moves and legs direction
-    export Renormalization, Projectors, TwoCorners, TwoCornersSimple, HalfSystem, Start, EachMove, EachMoveCirc # Projectors
-    export ConvergenceCriteria, OnlyCorners, Full
+    export Renormalization, Projectors, Start, EachMove
+
+    # Projectors
 
     #= CTM methods =#
     export update_environment!
     export do_ctmrg_iteration!
     export calc_projectors_ctmrg!
 
-    #! Debug
-    export factorize_rho
-    export do_ctm_move!
-    export update_tensors!
-    #! Debug
-
-
-
     #= General methods =#
     export cast_tensor, cast_tensor!
     export symmetrize
+
+    #= Others =#
+    #export GROUNDSTATE_SU2
 
     ###########
     # Imports #
@@ -80,5 +75,14 @@ module ipeps_ctm
     include("./CTM_methods.jl")
 
     #= Others =#
+    #include("./simulation_types.jl")
+
+    ##########
+    # Others #
+    ##########
+    @precompile_signatures(ipeps_ctm)
+
+    include("precompiles.jl")
+    _precompile_();
 
 end

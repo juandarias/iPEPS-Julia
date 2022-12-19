@@ -8,7 +8,6 @@
 
 @enum LatticeSymmetry UNDEF R4=1 XY
 
-@warn "LatticeSymmetry type not properly implemented in methods"
 
 """
     mutable struct Environment{T}

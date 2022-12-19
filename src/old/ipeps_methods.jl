@@ -14,12 +14,12 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
     ϵ = 1.0;
     i = 0
 
-    do_ctmrg_iteration!(unitcell, projectors);
+    do_ctmrg_iteration!(unitcell, projectors, simulation.ctm_Χ);
     while ϵ > simulation.tol_ctm
         i += 1;
 
         ref_unitcell = deepcopy(unitcell)
-        do_ctmrg_iteration!(unitcell, projectors);
+        do_ctmrg_iteration!(unitcell, projectors, simulation.ctm_Χ);
         ϵ = calculate_error_ctm(ref_unitcell, unitcell);
 
         @info "CTM iteration $i, convergence error = $(round(abs(ϵ), sigdigits = 4))";
@@ -38,7 +38,7 @@ end
 
 function do_ctmrg_iteration!(
     unitcell::UnitCell,
-    projectors::Projectors{EachMove})
+    projectors::Projectors{EachMove}, Χ::Int64)
 
     Nx = unitcell.dims[1];
     Ny = unitcell.dims[2];
@@ -48,7 +48,10 @@ function do_ctmrg_iteration!(
     for i ∈ 1:Nx
         # 1) Calculate all projectors along the column, i.e. all P_(i, j+n) for fixed j+n
         for j ∈ 1:Ny
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), LEFT); # P_(i,j)
+            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), LEFT, Χ); # P_(i,j)
+            #@info "Size T4 : ", size(unitcell.E[i,j].T[1])
+            #@info "Size T4 alt: ", size(unitcell(Environment, CartesianIndex(i+1, j-1)).T[4])
+
         end
 
         # 2) Absorb column j+n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
@@ -62,7 +65,7 @@ function do_ctmrg_iteration!(
     for i ∈ 1:Nx
         # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
         for j ∈ 1:Ny
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), RIGHT); # P_(i,j)
+            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), RIGHT, Χ); # P_(i,j)
         end
 
         # 2) Absorb column j-n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
@@ -75,7 +78,7 @@ function do_ctmrg_iteration!(
     for j ∈ 1:Ny
         # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
         for i ∈ 1:Nx
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), UP); # P_(i,j)
+            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), UP, Χ); # P_(i,j)
         end
 
         # 2) Absorb row i+n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
@@ -89,7 +92,7 @@ function do_ctmrg_iteration!(
     for j ∈ 1:Ny
         # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
         for i ∈ 1:Nx
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), DOWN); # P_(i,j)
+            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), DOWN, Χ); # P_(i,j)
         end
 
         # 2) Absorb row i-n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
@@ -261,8 +264,8 @@ function calc_projectors_ctmrg!(
     uc::UnitCell,
     projectors::Projectors,
     loc::CartesianIndex,
-    direction::Direction;
-    Χ::Int64=0)
+    direction::Direction,
+    Χ::Int64)
 
     if direction == LEFT
 
@@ -303,9 +306,7 @@ function calc_projectors_ctmrg!(
         HL = Q4 * Q3;
 
         # Calculate projectors
-        if Χ == 0
-            Χ = size(uc(Environment, loc).T[4], 2);
-        end
+        Χ = size(uc(Environment, loc).T[4], 2);
 
         U, Sinvsqrt, V, S = factorize_rho(HL, Χ)
         P̃ = Q3 * V * Sinvsqrt;
@@ -360,9 +361,7 @@ function calc_projectors_ctmrg!(
         HR = Q1 * Q2;
 
         # Calculate projectors
-        if Χ == 0
-            Χ = size(uc(Environment, loc).T[2], 2);
-        end
+        Χ = size(uc(Environment, loc).T[2], 2);
 
         U, Sinvsqrt, V, S = factorize_rho(HR, Χ)
         P̃ = Q2 * V * Sinvsqrt;
@@ -408,9 +407,7 @@ function calc_projectors_ctmrg!(
 
 
         # Calculate projectors
-        if Χ == 0
-            Χ = size(uc(Environment, loc).T[1], 1);
-        end
+        Χ = size(uc(Environment, loc).T[1], 1);
 
         U, Sinvsqrt, V, S = factorize_rho(HU, Χ);
         P̃ = Q1 * V * Sinvsqrt;
@@ -455,10 +452,8 @@ function calc_projectors_ctmrg!(
         Q3 = reshape(Q3, (size(Q3, 1) * size(Q3, 2), :));
         HD = Q3 * Q2;
 
-        if Χ == 0
-            Χ = size(uc(Environment, loc).T[3], 1);
-        end
 
+        Χ = size(uc(Environment, loc).T[3], 1);
         U, Sinvsqrt, V, S = factorize_rho(HD, Χ)
         P̃ = Q2 * V * Sinvsqrt;
         P = Sinvsqrt * U' * Q3;
