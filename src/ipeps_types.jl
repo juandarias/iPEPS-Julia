@@ -36,11 +36,13 @@ struct Environment{U}
     Χ::Int64
     "Corner matrices spectrum"
     spectra::Vector{Vector{Float64}}
+    TS::Vector{String} #! debug
 
     function Environment(C::Vector{Array{U,2}}, T::Vector{Array{U,3}}, loc::Tuple) where {U}
         Χ = size(T[1], 1);
         spectra = fill(ones(Χ), 4);
-        new{U}(loc, copy(C), copy(T), Χ, spectra)
+        TS = fill("s_", 4); #! debug
+        new{U}(loc, copy(C), copy(T), Χ, spectra, TS)
     end
 end
 
@@ -301,28 +303,16 @@ function UnitCell(
     UnitCell(D, dims, pattern, symmetry, R_cell, S_cell);
 end
 
-function (uc::UnitCell)(::Type{T}, ij::CartesianIndex) where {T}
+function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T}
 
-    Ni = uc.dims[1];
-    Nj = uc.dims[2];
-
-    Ni != 1 && (ij[1] > Ni || ij[1] < 0) && (ij = CartesianIndex(mod(ij[1], Ni), ij[2]);)
-    Ni == 1 && (ij[1] > Ni || ij[1] < 0) && (ij = CartesianIndex(1, ij[2]);)
-
-    Nj != 1 && (ij[2] > Nj || ij[2] < 0) && (ij = CartesianIndex(ij[1], mod(ij[2], Nj));)
-    Nj == 1 && (ij[2] > Nj || ij[2] < 0) && (ij = CartesianIndex(ij[1], 1);)
-
-
-    ij[1] == 0 && (ij = CartesianIndex(Ni, ij[2]);)
-    ij[2] == 0 && (ij = CartesianIndex(ij[1], Nj);)
-
+    loc = coord(loc, uc.dims);
 
     if T == SimpleUpdateTensor
-        return uc.S[ij]
+        return uc.S[loc]
     elseif T == ReducedTensor
-        return uc.R[ij]
+        return uc.R[loc]
     elseif T == Environment
-        return uc.E[ij]
+        return uc.E[loc]
     end
 
 end

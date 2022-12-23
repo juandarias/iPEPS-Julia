@@ -1,11 +1,11 @@
 module ipeps_ctm
 
-    @info "Code is not type-stable, leading to long compilation times. See https://www.juliabloggers.com/writing-type-stable-julia-code/ for tips on how to fix this!"
+    @info "Code is not type-stable, leading to long compilation times. See https://www.juliabloggers.com/writing-type-stable-julia-code/ and https://blog.sintef.com/industry-en/writing-type-stable-julia-code/ for tips on how to fix this!"
     ###########
     # Modules #
     ###########
 
-    import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!, ishermitian
+    import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!
     import Combinatorics: permutations
     using TensorOperations
     using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
@@ -17,7 +17,6 @@ module ipeps_ctm
 
     abstract type Simulation end
     abstract type Hamiltonian end
-
 
     ###########
     # Exports #
@@ -35,12 +34,14 @@ module ipeps_ctm
 
     #= iPEPS methods =#
     export initialize_environment!, generate_environment_tensors
-    export update_cell!
-    export prepare_su_tensor
-    export restore_su_tensor
-    export apply_gate
     export calculate_exp_val
     export implode #? Is there a better name?
+
+    #= SU methods =#
+    #export update_cell!
+    #export prepare_su_tensor
+    #export restore_su_tensor
+    #export apply_gate
 
     #= CTM types =#
     export Direction, UP, RIGHT, DOWN, LEFT, VERTICAL, HORIZONTAL # CTM moves and legs direction
@@ -56,6 +57,10 @@ module ipeps_ctm
     #= General methods =#
     export cast_tensor, cast_tensor!
     export symmetrize
+    export tensor_svd
+
+    #= Aux/helper methods =#
+    export coord
 
     #= Others =#
     #export GROUNDSTATE_SU2
@@ -76,6 +81,7 @@ module ipeps_ctm
 
     #= Others =#
     #include("./simulation_types.jl")
+    include("./aux_methods.jl")
 
     ##########
     # Others #

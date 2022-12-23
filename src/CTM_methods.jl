@@ -36,69 +36,116 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
     simulation.ctm_error = ϵ;
 end
 
+
 function do_ctmrg_iteration!(
-    unitcell::UnitCell,
-    projectors::Projectors{EachMove})
+    unitcell::UnitCell{T},
+    projectors::Projectors{EachMove}) where {T}
 
     Nx = unitcell.dims[1];
     Ny = unitcell.dims[2];
 
+    # Makes a copy of the initial full cell environment to be used when updating each tensor environment
+    initial_environment = deepcopy(unitcell.E);
+    new_environment = Array{Environment{T}, 2}(undef, unitcell.dims);
 
-    #= Left move for every unit-cell tensor. Sweeps from left to right, column by column =#
-    for i ∈ 1:Nx
-        # 1) Calculate all projectors along the column, i.e. all P_(i, j+n) for fixed j+n
-        for j ∈ 1:Ny
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), LEFT); # P_(i,j)
+    for xy ∈ CartesianIndices(unitcell.dims)
+        unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
+        @debug "Updating environment tensors at $xy"
+
+        #= Left move for every unit-cell tensor. Sweeps from left to right, column by column =#
+        for i ∈ 1:Nx
+            @debug "Left move, adding column $i"
+            # 1) Calculate all projectors along the column, i.e. all P_(i, j+n) for fixed j+n
+            for j ∈ 0:Ny-1
+                loc = coord(xy + CartesianIndex(i,j), unitcell.dims);
+                calc_projectors_ctmrg!(unitcell, projectors, loc, LEFT); # P_(i,j)
+            end
+
+            # 2) Absorb column j+n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
+            for j ∈ 0:Ny-1
+                loc = coord(xy + CartesianIndex(i,j), unitcell.dims);
+                do_ctm_move!(unitcell, projectors, LEFT, loc);
+            end
         end
 
-        # 2) Absorb column j+n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
-        for j ∈ 1:Ny
-            do_ctm_move!(unitcell, projectors, LEFT, CartesianIndex(i,j));
-        end
+        # Updates new environment
+        new_environment[xy] = deepcopy(unitcell.E[xy]);
     end
 
+    initial_environment = deepcopy(new_environment);
 
-    #= Right move for every unit-cell tensor. Sweeps from left to right, column by column =#
-    for i ∈ 1:Nx
-        # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
+    for xy ∈ CartesianIndices(unitcell.dims)
+        unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
+        #= Right move for every unit-cell tensor. Sweeps from right to left, column by column =#
+        for i ∈ 1:Nx
+            @debug "Right move, adding column $i"
+            # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
+            for j ∈ 0:Ny-1
+                loc = coord(xy + CartesianIndex(-i,j), unitcell.dims);
+                calc_projectors_ctmrg!(unitcell, projectors, loc, RIGHT); # P_(i,j)
+            end
+
+            # 2) Absorb column j-n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
+            for j ∈ 0:Ny-1
+                loc = coord(xy + CartesianIndex(-i,j), unitcell.dims);
+                do_ctm_move!(unitcell, projectors, RIGHT, loc);
+            end
+        end
+
+        # Updates new environment
+        new_environment[xy] = deepcopy(unitcell.E[xy]);
+    end
+
+    initial_environment = deepcopy(new_environment);
+
+    for xy ∈ CartesianIndices(unitcell.dims)
+        unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
+        #= Up move for every unit-cell tensor. Sweeps from top to bottom, row by row =#
         for j ∈ 1:Ny
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), RIGHT); # P_(i,j)
+            @debug "Up move, adding row $j"
+            # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
+            for i ∈ 0:Nx-1
+                loc = coord(xy + CartesianIndex(i,j), unitcell.dims);
+                calc_projectors_ctmrg!(unitcell, projectors, loc, UP); # P_(i,j)
+            end
+
+            # 2) Absorb row i+n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
+            for i ∈ 0:Nx-1
+                loc = coord(xy + CartesianIndex(i,j), unitcell.dims);
+                do_ctm_move!(unitcell, projectors, UP, loc);
+            end
         end
 
-        # 2) Absorb column j-n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
+        # Updates new environment
+        new_environment[xy] = deepcopy(unitcell.E[xy]);
+    end
+
+    initial_environment = deepcopy(new_environment);
+
+    for xy ∈ CartesianIndices(unitcell.dims)
+        unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
+
+        #= Down move for every unit-cell tensor. Sweeps from bottom to top, row by row =#
         for j ∈ 1:Ny
-            do_ctm_move!(unitcell, projectors, RIGHT, CartesianIndex(i,j));
+            @debug "Down move, adding row $j"
+            # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
+            for i ∈ 0:Nx-1
+                loc = coord(xy + CartesianIndex(i,-j), unitcell.dims);
+                calc_projectors_ctmrg!(unitcell, projectors, loc, DOWN); # P_(i,j)
+            end
+
+            # 2) Absorb row i-n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
+            for i ∈ 0:Nx-1
+                loc = coord(xy + CartesianIndex(i,-j), unitcell.dims);
+                do_ctm_move!(unitcell, projectors, DOWN, loc);
+            end
         end
+
+        # Updates new environment
+        new_environment[xy] = deepcopy(unitcell.E[xy]);
     end
 
-   #= Up move for every unit-cell tensor. Sweeps from top to bottom, row by row =#
-    for j ∈ 1:Ny
-        # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
-        for i ∈ 1:Nx
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), UP); # P_(i,j)
-        end
-
-        # 2) Absorb row i+n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
-        for i ∈ 1:Nx
-            do_ctm_move!(unitcell, projectors, UP, CartesianIndex(i,j));
-        end
-    end
-
-
-   #= Down move for every unit-cell tensor. Sweeps from top to bottom, row by row =#
-    for j ∈ 1:Ny
-        # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
-        for i ∈ 1:Nx
-            calc_projectors_ctmrg!(unitcell, projectors, CartesianIndex(i,j), DOWN); # P_(i,j)
-        end
-
-        # 2) Absorb row i-n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
-        for i ∈ 1:Nx
-            do_ctm_move!(unitcell, projectors, DOWN, CartesianIndex(i,j));
-        end
-    end
-
-
+    unitcell.E = deepcopy(new_environment);
 end
 
 
@@ -124,6 +171,7 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         """
 
         E_add = unitcell(Environment, loc + CartesianIndex(-1, 0));
+        @debug "Left move at $loc adding $(coord(loc + CartesianIndex(-1, 0), unitcell.dims))"
 
         # Grow environment
         @tensor C4T1[re, de, dc] := E_add.C[4][α, de] * E_loc.T[1][re, α, dc]
@@ -133,6 +181,9 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         T4A = reshape(T4A, (prod(size(T4A)[1:2]), prod(size(T4A)[3:4]), size(T4A, 5)));
         C4T1 = reshape(C4T1, (size(C4T1, 1), :));
         C3T3 = reshape(C3T3, (:, size(C3T3, 3)));
+
+        #! debug
+        E_loc.TS[4] = E_add.TS[4] * "_l" * string(Tuple(loc));
 
         # Renormalize
 
@@ -163,6 +214,7 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         """
 
         E_add = unitcell(Environment, loc + CartesianIndex(1, 0));
+        @debug "Right move at $loc adding $(coord(loc + CartesianIndex(1, 0), unitcell.dims))"
 
         # Grow environment
         @tensor C1T1[de, dc, le] := E_add.C[1][de, α] * E_loc.T[1][α, le, dc];
@@ -172,6 +224,10 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         C1T1 = transpose(reshape(C1T1, (:, size(C1T1, 3))));
         C2T3 = reshape(C2T3, (:, size(C2T3, 3)));
         T2A = reshape(T2A, (prod(size(T2A)[1:2]), prod(size(T2A)[3:4]), size(T2A, 5)));
+
+        #! debug
+        E_loc.TS[2] = E_add.TS[2] * "_r" * string(Tuple(loc));
+        #@info "T2 env", E_loc.TS[2]
 
         # Renormalize
 
@@ -208,6 +264,9 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         C1T2 = transpose(reshape(C1T2, (size(C1T2, 1), :)));
         T1A = reshape(T1A, (prod(size(T1A)[1:2]), prod(size(T1A)[3:4]), size(T1A, 5)));
 
+        #! debug
+        E_loc.TS[1] = E_add.TS[1] * "_u" * string(Tuple(loc));
+
         # Renormalize
 
         P̃ = projectors(UP, loc)[1];
@@ -241,6 +300,9 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         C3T4 = reshape(C3T4, (size(C3T4, 1), :));
         C2T2 = transpose(reshape(C2T2, (size(C2T2, 1), :)));
         T3A = reshape(T3A, (prod(size(T3A)[1:2]), prod(size(T3A)[3:4]), size(T3A, 5)));
+
+        #! debug
+        E_loc.TS[3] = E_add.TS[3] * "_d" * string(Tuple(loc));
 
         # Renormalize
 
@@ -502,10 +564,6 @@ function update_tensors!(uc::UnitCell, tensors::Vector{T}, direction::Direction,
     end
 
 end
-
-
-
-
 
 
 ####################

@@ -57,6 +57,120 @@ function initialize_environment!(uc::UnitCell{X}) where {X}
 end
 
 
+"""
+    reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
+
+Creates a new environment from two different states as required when calculating overlaps.
+"""
+function reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
+    if ket.D != bra.D
+        #* 1) Create projectors to D=1 for all unit-cell tensors and directions
+        isos_ket = Projectors{BraKetOverlap}(ket);
+        generate_isometries_overlap!(isos_ket, ket);
+
+        isos_bra = Projectors{BraKetOverlap}(bra);
+        generate_isometries_overlap!(isos_bra, bra);
+
+        cell_environment = Array{Environment{X}, 2}(undef, ket.dims);
+
+        for xy ∈ CartesianIndices(ket.dims)
+            Cs, Ts = generate_environment_tensors(ket, bra, isos_ket, isos_bra, xy);
+            cell_environment[xy] = Environment(Cs, Ts, xy);
+        end
+
+    else
+        @assert "If the bond dimensions of ket an bra layer are the same, reuse the
+        environment of one of them and reconverge"
+    end
+
+    return cell_environment
+end
+
+function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::UnitCell)
+
+    for xy ∈ CartesianIndices((ket.dims[1], ket.dims[2]))
+        A = cast_tensor(Tensor, state(SimpleUpdateTensor, xy));
+        shifts = [(0, -1), (1, 0), (0, 1), (-1, 0)]; # up, right, down, left
+
+        for dir ∈ [DOWN, RIGHT]
+            nxy = xy + CartesianIndex(shifts[Int(dir)])
+            nA = cast_tensor(Tensor, state(SimpleUpdateTensor, nxy));
+
+            # Contract NN tensors
+            if dir == DOWN
+                @tensor AnA[1, 2, 3, p1, 4, 5, 6, p2] := n.A[1, 2, α, 3, p1] * nA.A[α, 4, 5, 6, p2]
+            elseif dir == RIGHT
+                @tensor AnA[1, 2, 3, p1, 4, 5, 6, p2] := A.A[1, α, 2, 3, p1] * nA.A[4, 5, 6, α, p2]
+            end
+
+            # Factorize
+            U, S, Vt = tensor_svd(AnA,[[1,2,3,4], [4,5,6,7]])
+            sqrtS = sqrt(S[1]);
+            IA = U[:,1] * sqrtS;
+            InA = sqrtS * Vt[1, :];
+
+            Id = diagm(ones(size(S)));
+
+            # Save isometries
+            if dir == DOWN
+                isos.Pd[xy] = [IA, Id];
+                isos.Pu[nxy] = [InA, Id];
+            elseif dir == RIGHT
+                isos.Pr[xy] = [IA, Id];
+                isos.Pl[nxy] = [InA, Id];
+            end
+
+        end
+    end
+
+end
+
+function generate_environment_tensors(ket::UnitCell, bra::UnitCell, iso_ket::Projectors, iso_bra::Projectors, loc::CartesianIndex)
+    A = cast_tensor(Tensor, ket(SimpleUpdateTensor, loc));
+    B = cast_tensor(Tensor, bra(SimpleUpdateTensor, loc));
+
+    IA_up = iso_ket.Pu[loc][1];    IB_up = iso_bra.Pu[loc][1];
+    IA_r = iso_ket.Pr[loc][1];    IB_r = iso_bra.Pr[loc][1];
+    IA_d = iso_ket.Pd[loc][1];    IB_d = iso_bra.Pd[loc][1];
+    IA_l = iso_ket.Pl[loc][1];    IB_l = iso_bra.Pl[loc][1];
+
+    @tensor T1[rk, rb, lk, lb, dk, db] := A[α, rk, dk, lk, δ] * IA_up[α, β] * IB_up[γ, β] * B[γ, rb, db, lb, δ];
+    T1 = reshape(T1, (A.D[2] * B.D[2], A.D[4] * B.D[4], :));
+
+    @tensor T2[uk, ub, dk, db, lk, lb] := A[uk, α, dk, lk, δ] * IA_r[α, β] * IB_r[γ, β] * B[ub, γ, db, lb, δ];
+    T2 = reshape(T2, (A.D[1] * B.D[1], A.D[3] * B.D[3], :));
+
+    @tensor T3[rk, rb, lk, lb, uk, ub] := A[uk, rk, α, lk, δ] * IA_d[α, β] * IB_d[γ, β] * B[ub, rk, γ, lb, δ];
+    T3 = reshape(T3, (A.D[2] * B.D[2], A.D[4] * B.D[4], :));
+
+    @tensor T4[uk, ub, dk, db, rk, rb] := A[uk, rk, dk, α, δ] * IA_l[α, β] * IB_l[γ, β] * B[ub, rk, dk, γ, δ];
+    T4 = reshape(T4, (A.D[1] * B.D[1], A.D[3] * B.D[3], :));
+
+    Ts = [T1, T2, T3, T4];
+
+    @tensor C4[rk, rb, dk, db] := A[μ, rk, dk, α, δ] * IA_up[μ, ν] * IB_up[ω, ν] * IA_l[α, β] *
+    IB_l[γ, β] * B[ω, rb, db, γ, δ];
+    C4 = reshape(C4, (A.D[2] * B.D[2], :));
+
+    @tensor C1[dk, db, lk, lb] := A[μ, α, dk, lk, δ] * IA_up[μ, ν] * IB_up[ω, ν] * IA_r[α, β] *
+    IB_r[γ, β] * B[ω, γ, db, lb, δ];
+    C1 = reshape(C1, (A.D[3] * B.D[3], :));
+
+    @tensor C2[uk, ub, lk, lb] := A[uk, α, μ, lk, δ] * IA_d[μ, ν] * IB_d[ω, ν] * IA_r[α, β] *
+    IB_r[γ, β] * B[db, γ, ω, lb, δ];
+    C2 = reshape(C2, (A.D[1] * B.D[1], :));
+
+    @tensor C3[uk, ub, rk, rb] := A[uk, rk, μ, α, δ] * IA_d[μ, ν] * IB_d[ω, ν] * IA_l[α, β] *
+    IB_l[γ, β] * B[db, rk, ω, γ, δ];
+    C3 = reshape(C3, (A.D[1] * B.D[1], :));
+
+    Cs = [C4, C1, C2, C3];
+
+    return Cs, Ts
+
+end
+
+
 function generate_environment_tensors(unitcell::UnitCell{U}, coord::CartesianIndex; fuse_bra_ket::Bool = true) where {U}
 
     D = unitcell.S[coord].D;
@@ -93,70 +207,6 @@ function generate_environment_tensors(unitcell::UnitCell{U}, coord::CartesianInd
     return Cs, Ts
 end
 
-function prepare_su_tensor(S::SimpleUpdateTensor, gate_direction::Direction)
-
-    gate_direction == UP ? (n = 3) : (gate_direction == RIGHT ?
-    (n = 2) : (gate_direction == DOWN ? (n = 1) : (n = 0)));
-    order = [circshift([1, 2, 3, 4], n)..., 5];
-
-    S.S = permutedims(S.S, order); # permute legs such that aux. leg towards gate is before last one
-    weights = diagm.(S.weights[order[1:3]]);
-
-    # Absorb weights
-    @tensor M[1, 2, 3, g, p] := S.S[α, β, γ, g, p] * weights[1][α, 1] *
-        weights[2][β, 2] * weights[3][γ, 3];
-
-
-    # Factorize
-    M = reshape(M, (S.D^3, S.D * S.d));
-    Q, R = qr(M);
-    R = reshape(Matrix(R), (:, S.D, S.d));
-    Q = reshape(Matrix(Q), (S.D, S.D, S.D, :));
-
-    return Q, R
-end
-
-function restore_su_tensor(Q::Array{X, 4}, R::Array{T,3}, weights::Vector{Vector{Float64}}, gate_direction::Direction) where {T,X}
-
-    gate_direction == UP ? (n = 3) : (gate_direction == RIGHT ?
-    (n = 2) : (gate_direction == DOWN ? (n = 1) : (n = 0)));
-    order = circshift([1, 2, 3, 4], n);
-
-    #x⁻¹(x) = x.^(-1)
-    inv_weights = [diagm(weights[order[n]].^-1) for n ∈ 1:3]
-
-    @tensor S[1, 2, 3, 4, p] := Q[α, β, γ, δ] * inv_weights[1][α, 1] * inv_weights[2][β, 2] *
-    inv_weights[3][γ, 3] * R[δ, p, 4];
-
-
-    # Restore order of legs
-    order = [circshift([1, 2, 3, 4], -n)..., 5];
-    S = permutedims(S, order);
-    return S
-end
-
-function apply_gate(G::Array{S, 4}, RA::Array{T, 3}, RB::Array{T, 3}, W::Array{Float64,2}, Dmax::Int64) where {T,S}
-    @tensor RRGw[l, u1, u2, r] := RA[l, γ, α] * G[u1, u2, α, β] * W[γ, δ] * RB[r, δ, β];
-
-    # Split and truncate
-    RRGw = reshape(RRGw, (prod(size(RRGw)[1:2]), :));
-    RAg, Wg, RBg = svd(RRGw);
-    R̃A = reshape(RAg[:, 1:Dmax], (size(RA, 1), 2, Dmax)); #! (l,d,Dmax)
-    R̃B = reshape(RBg[:, 1:Dmax], (2, size(RB, 1), Dmax)); #! (d,r,Dmax)
-    W̃ = Wg[1:Dmax];
-
-    return R̃A, R̃B, W̃
-end
-
-
-function update_cell!(unitcell::UnitCell, S::Array{T, 5}, weights::Vector{Float64}, label::Char, direction::Direction) where {T}
-    coords = findall(t -> t == label, unitcell.pattern);
-    for coord in coords
-        unitcell.S[coord].S = S/norm(S); #! normalize
-        unitcell.S[coord].weights[Int(direction)] = weights/sqrt(sum(weights.^2));
-    end
-
-end
 
 function calculate_exp_val(unitcell::UnitCell, operator::Operator{X}) where {X}
     # Extract environment
@@ -174,6 +224,7 @@ function calculate_exp_val(unitcell::UnitCell, operator::Operator{X}) where {X}
         exp_val = implode(TOT, unitcell.E[operator.loc[1]]);
 
     elseif operator.nsites == 2 # only two-site NN case
+        @info "Only for NN operators"
         T1 = cast_tensor(Tensor, unitcell.S[operator.loc[1]]);
         T2 = cast_tensor(Tensor, unitcell.S[operator.loc[2]]);
         E1 = unitcell.E[operator.loc[1]];
@@ -283,4 +334,13 @@ function implode(R::Vector{Array{T, 4}}, E::Environment) where {T}
 
     return RE
 
+end
+
+
+function overlap(ket::UnitCell, bra::UnitCell)
+    if ket.D != bra.D
+        # Initialize environments
+
+    else ket.D == ket.D
+    end
 end

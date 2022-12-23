@@ -11,6 +11,7 @@ abstract type TwoCornersSimple <: Renormalization end # DOI: 10.1103/PhysRevLett
 # When are the projectors calculated
 abstract type Start <: Renormalization end
 abstract type EachMove <: Renormalization end
+abstract type BraKetOverlap <: Renormalization end
 
 """
     mutable struct Projectors{T<:Renormalization}
@@ -59,19 +60,7 @@ end
 
 function (proj::Projectors)(direction::Direction, loc::CartesianIndex)
 
-    Nx = proj.dims[1];
-    Ny = proj.dims[2];
-
-    Nx != 1 && (loc[1] > Nx || loc[1] < 0) && (loc = CartesianIndex(mod(loc[1], Nx), loc[2]);)
-    Nx == 1 && (loc[1] > Nx || loc[1] < 0) && (loc = CartesianIndex(1, loc[2]);)
-
-    Ny != 1 && (loc[2] > Ny || loc[2] < 0) && (loc = CartesianIndex(loc[1], mod(loc[2], Ny));)
-    Ny == 1 && (loc[2] > Ny || loc[2] < 0) && (loc = CartesianIndex(loc[1], 1);)
-
-
-    loc[1] == 0 && (loc = CartesianIndex(Nx, loc[2]);)
-    loc[2] == 0 && (loc = CartesianIndex(loc[1], Ny);)
-
+    loc = coord(loc, proj.dims);
 
     if direction == UP
         return proj.Pu[loc]
