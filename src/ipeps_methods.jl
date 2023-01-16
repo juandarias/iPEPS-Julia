@@ -1,4 +1,4 @@
-
+#=
 """
 function (uc::UnitCell)(i, j; reduced::Bool = false)
 
@@ -19,7 +19,7 @@ function (uc::UnitCell)(i, j; reduced::Bool = false)
         reduced == false && return uc.S[i,j];
     end
 
-end
+end =#
 
 
 """
@@ -28,7 +28,7 @@ end
 Initializes environment reduced tensors by contracting legs pointing outwards at each lattice site. See PRB. 84, 041108(R) 2011
 
 """
-function initialize_environment!(uc::UnitCell{X}) where {X}
+function initialize_environment!(uc::UnitCell{X}) where {X<:Union{Float64, ComplexF64}}
 
     cell_environment = Array{Environment{X}, 2}(undef, uc.dims);
 
@@ -64,7 +64,7 @@ Creates a new environment from two different states as required when calculating
 """
 function reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
     if ket.D != bra.D
-        #* 1) Create projectors to D=1 for all unit-cell tensors and directions
+        #* Create projectors to D=1 for all unit-cell tensors and directions
         isos_ket = Projectors{BraKetOverlap}(ket);
         generate_isometries_overlap!(isos_ket, ket);
 
@@ -73,6 +73,7 @@ function reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
 
         cell_environment = Array{Environment{X}, 2}(undef, ket.dims);
 
+        #* Create environment tensors
         for xy ∈ CartesianIndices(ket.dims)
             Cs, Ts = generate_environment_tensors(ket, bra, isos_ket, isos_bra, xy);
             cell_environment[xy] = Environment(Cs, Ts, xy);
@@ -86,15 +87,20 @@ function reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
     return cell_environment
 end
 
+"""
+    generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::UnitCell)
+
+Creates the isometries needed for the environment tensors used when calculating overlaps between two states
+"""
 function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::UnitCell)
 
     for xy ∈ CartesianIndices((ket.dims[1], ket.dims[2]))
-        A = cast_tensor(Tensor, state(SimpleUpdateTensor, xy));
+        A = state(Tensor, xy);
         shifts = [(0, -1), (1, 0), (0, 1), (-1, 0)]; # up, right, down, left
 
         for dir ∈ [DOWN, RIGHT]
             nxy = xy + CartesianIndex(shifts[Int(dir)])
-            nA = cast_tensor(Tensor, state(SimpleUpdateTensor, nxy));
+            nA = state(Tensor, nxy);
 
             # Contract NN tensors
             if dir == DOWN
@@ -125,9 +131,10 @@ function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::Un
 
 end
 
+
 function generate_environment_tensors(ket::UnitCell, bra::UnitCell, iso_ket::Projectors, iso_bra::Projectors, loc::CartesianIndex)
-    A = cast_tensor(Tensor, ket(SimpleUpdateTensor, loc));
-    B = cast_tensor(Tensor, bra(SimpleUpdateTensor, loc));
+    A = ket(Tensor, loc);
+    B = bra(Tensor, loc);
 
     IA_up = iso_ket.Pu[loc][1];    IB_up = iso_bra.Pu[loc][1];
     IA_r = iso_ket.Pr[loc][1];    IB_r = iso_bra.Pr[loc][1];
@@ -171,11 +178,18 @@ function generate_environment_tensors(ket::UnitCell, bra::UnitCell, iso_ket::Pro
 end
 
 
-function generate_environment_tensors(unitcell::UnitCell{U}, coord::CartesianIndex; fuse_bra_ket::Bool = true) where {U}
+function generate_environment_tensors(unitcell::UnitCell, coord::CartesianIndex; fuse_bra_ket::Bool = true)
 
-    D = unitcell.S[coord].D;
-    Aij = cast_tensor(Tensor, unitcell.S[coord]);
-    @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij.A[uk, rk, dk, lk, α] * conj(Aij.A)[ub, rb, db, lb, α]; # Contract physical index
+    if isdefined(unitcell, :R) == false
+        Aij = unitcell(Tensor, coord);
+
+        @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij.A[uk, rk, dk, lk, α] * conj(Aij.A)[ub, rb, db, lb, α]; # Contract physical index
+    else
+        R = unitcell(ReducedTensor, coord);
+        D = Int64.(sqrt.(R.D));
+        Rij = reshape(R.R, (D[1], D[1], D[2], D[2], D[3], D[3], D[4], D[4]));
+    end
+
 
     @tensor C1[dk, db, lk, lb] := Rij[α, α, β, β, dk, db, lk, lb];
     @tensor C2[uk, ub, lk, lb] := Rij[uk, ub, α, α, β, β, lk, lb];
@@ -208,57 +222,219 @@ function generate_environment_tensors(unitcell::UnitCell{U}, coord::CartesianInd
 end
 
 
-function calculate_exp_val(unitcell::UnitCell, operator::Operator{X}) where {X}
-    # Extract environment
-    # Apply operator to ket layer
-    # Contract
+"""
+    apply_operator(state::UnitCell, op::Operator)
 
-    if operator.nsites == 1
-        T = cast_tensor(Tensor, unitcell.S[operator.loc[1]]);
-        @tensor TO[u, r, d, l, p] := T[u, r, d, l, α] * operator.O[α, p];
-        @tensor RO[u, r, d, l] := TO[uk, r, d, ];
+Applies an operator (only single-site at the moment) to an state and updates the simple-update and reduced tensors of the location.
 
-        @tensor TOT[uk, ub, rk, rb, dk, db, lk, lb] := TO[uk, rk, dk, lk, α] * conj(T)[ub, rb, db, lb, α]
-        TOT = reshape(TOT, (T.D^2, T.D^2, T.D^2, T.D^2));
+"""
+function apply_operator(state::UnitCell, op::Operator)
+    op_state = deepcopy(state);
+    if op.nsites == 1
+        A = op_state(Tensor, op.loc[1]);
 
-        exp_val = implode(TOT, unitcell.E[operator.loc[1]]);
+        # Apply operator and update S tensor
+        @tensor Op_A_M[u, r, d, l, p] := A.A[u, r, d, l, α] * op.O[α, p];
+        Op_A = Tensor(Op_A_M);
+        op_state.A[op.loc[1]] = Op_A;
 
-    elseif operator.nsites == 2 # only two-site NN case
-        @info "Only for NN operators"
-        T1 = cast_tensor(Tensor, unitcell.S[operator.loc[1]]);
-        T2 = cast_tensor(Tensor, unitcell.S[operator.loc[2]]);
-        E1 = unitcell.E[operator.loc[1]];
-        E2 = unitcell.E[operator.loc[2]];
+        # Update R tensor
+        @tensor R[uk, ub, rk, rb, dk, db, lk, lb] := A.A[uk, rk, dk, lk, α] * conj(Op_A.A)[ub, rb, db, lb, α];
+        R = reshape(R, (state.D * state.D, state.D * state.D, state.D * state.D, :));
+        op_state.R[op.loc[1]] = deepcopy(ReducedTensor(R, UNDEF));
 
-        if operator.loc[1][1] == operator.loc[2][1] # operator along horizontal bonds
-            @tensor T1T2O[u1, u2, r2, d1, d2, l1, p1, p2] := T1[u1, α, d1, l1, β] *
-            T2[u2, r2, d2, α, γ] * operator.O[p1, p2, β, γ];
+    elseif op.nsite != 1
+        @info "Not implemented yet"
+    end
+    return op_state
+end
 
-            E1E2 = Environment(
-            [E1.C[4] E2.C[1] E2.C[2] E1.C[3]],
-            [E1.T[4]; E1.T[1]; E2.T[1:3]; E1.T[3]], operator.loc[1]); # environment is rotated CW π/2
 
-            exp_val = implode(T1T2O, E1E2);
+function overlap(ket::UnitCell{T}, bra::UnitCell{T}, ctm_parms::Simulation; init_env::Bool = true, loc::CartesianIndex=CartesianIndex(1,1)) where {T}
+    if ket.D != bra.D
+        # Reinitialize environments with fused bra-ket legs
+        E = reinitialize_environment(ket, bra);
 
-        elseif operator.loc[1][2] == operator.loc[2][2] # operator along vertical bonds
-            @tensor T1T2O[u1, r1, r2, d2, l1, l2, p1, p2] := T1[u1, r1, α, l1, β] *
-            T2[α, r2, d2, l2, γ] * operator.O[p1, p2, β, γ];
+        # Calculate reduced tensors of unit-cell
+        R_cell = Array{ReducedTensor{T}, 2}(undef,  ket.dims);
 
-            E1E2 = Environment(
-            [E1.C[1] E2.C[2] E2.C[3] E1.C[4]],
-            [E1.T[1:2]; E2.T[2:4]; E1.T[4]], operator.loc[1]);
-
-            exp_val = implode(T1T2O, E1E2);
-
+        for xy ∈ CartesianIndices(ket.dims)
+            A = ket(Tensor, xy);
+            B = bra(Tensor, xy);
+            @tensor R[uk, ub, rk, rb, dk, db, lk, lb] := A.A[uk, rk, dk, lk, α] * B.A[ub, rb, db, lb, α];
+            R = reshape(R, (ket.D * bra.D, ket.D * bra.D, ket.D * bra.D, :));
+            R_cell[xy] = ReducedTensor(R, UNDEF);
         end
+
+        braket = UnitCell(R_cell);
+        braket.E = deepcopy(E);
+
+    else ket.D == ket.D
+
+        # Calculate reduced tensors of unit-cell
+        R_cell = Array{ReducedTensor{T}, 2}(undef,  ket.dims);
+
+        for xy ∈ CartesianIndices(ket.dims)
+            A = ket(Tensor, xy);
+            B = bra(Tensor, xy);
+            @tensor R[uk, ub, rk, rb, dk, db, lk, lb] := A.A[uk, rk, dk, lk, α] * B.A[ub, rb, db, lb, α];
+            R = reshape(R, (ket.D^2, ket.D^2, ket.D^2, :));
+            R_cell[xy] = ReducedTensor(R, UNDEF);
+        end
+
+        braket = UnitCell(R_cell);
+
+        # Recreate environment tensors
+        if init_env == true
+            E = Array{Environment{T}, 2}(undef, braket.dims);
+
+            for xy ∈ CartesianIndices(braket.dims)
+                E[xy] = generate_environment_tensors(braket, xy);
+            end
+
+            braket.E = deepcopy(E);
+        else
+            braket.E = deepcopy(ket.E)
+        end
+
 
     end
 
-    return exp_val
+    # Converge environment
+    projectors = Projectors{EachMove}(braket);
+    error_CTM = update_environment!(braket, projectors, ctm_parms);
+
+    # Contract
+    λ = do_full_contraction(braket, loc)
+
+    return λ
 end
 
 
 """
+    do_full_contraction(unitcell::UnitCell, loc::CartesianIndex)
+
+    Contracts:
+
+                C4(x-1, y-1) -- T1(x, y-1) -- C1(x+1, y-1)
+                    |               |             |
+                    |               |             |
+                T4(x-1, y)   --   R(x,y)   -- T2(x+1, y)
+                    |               |             |
+                    |               |             |
+                C3(x-1, y+1) -- T3(x, y+1) -- C2(x+1, y+1)
+
+"""
+function do_full_contraction(unitcell::UnitCell, loc::CartesianIndex)
+    C1 = unitcell(Environment, loc + CartesianIndex(1, -1)).C[1];
+    C2 = unitcell(Environment, loc + CartesianIndex(1, 1)).C[2];
+    C3 = unitcell(Environment, loc + CartesianIndex(-1, 1)).C[3];
+    C4 = unitcell(Environment, loc + CartesianIndex(-1, -1)).C[4];
+
+    T1 = unitcell(Environment, loc  + CartesianIndex(0, -1)).T[1];
+    T2 = unitcell(Environment, loc + CartesianIndex(1, 0)).T[2];
+    T3 = unitcell(Environment, loc + CartesianIndex(0, 1)).T[3];
+    T4 = unitcell(Environment, loc + CartesianIndex(-1, 0)).T[4];
+
+
+    R = unitcell(ReducedTensor, loc).R;
+
+    # cw: clockwise, ccw: counterclockwise, uc: unitcell leg
+    @tensor T1C1[ccw, cw, u] := T1[α, ccw, u] * C1[cw, α]
+    @tensor C4T1C1[ccw, cw, u] := C4[α, ccw] * T1C1[α, cw, u]
+    @tensor T4C4T1C1[ccw, cw, u, l] := T4[α, ccw, l] * C4T1C1[α, cw, u]
+    @tensor C3T4C4T1C1[ccw, cw, u, l] := C3[α, ccw] * T4C4T1C1[α, cw, u, l]
+    @tensor T3C3T4C4T1C1[ccw, cw, u, l, d] := T3[ccw, α, d] * C3T4C4T1C1[α, cw, u, l]
+    @tensor C2T3C3T4C4T1C1[ccw, cw, u, l, d] := C2[ccw, α] * T3C3T4C4T1C1[α, cw, u, l, d]
+    @tensor E[u, l, d, r] := T2[β, α, r] * C2T3C3T4C4T1C1[α, β, u, l, d]
+    E = permutedims(E, (1, 4, 3, 2)); #u,r,d,l
+
+
+    # Contract with reduced tensor
+    λ = 0.0;
+    @tensor λ = E[u, r, d, l] * R[u, r, d, l]
+
+    return λ
+
+end
+
+function calculate_rdm(unitcell::UnitCell, loc::CartesianIndex)
+    C1 = unitcell(Environment, loc + CartesianIndex(1, -1)).C[1];
+    C2 = unitcell(Environment, loc + CartesianIndex(1, 1)).C[2];
+    C3 = unitcell(Environment, loc + CartesianIndex(-1, 1)).C[3];
+    C4 = unitcell(Environment, loc + CartesianIndex(-1, -1)).C[4];
+
+    T1 = unitcell(Environment, loc  + CartesianIndex(0, -1)).T[1];
+    T2 = unitcell(Environment, loc + CartesianIndex(1, 0)).T[2];
+    T3 = unitcell(Environment, loc + CartesianIndex(0, 1)).T[3];
+    T4 = unitcell(Environment, loc + CartesianIndex(-1, 0)).T[4];
+
+    A = unitcell(Tensor, loc).A;
+    D = size(A);
+
+    # cw: clockwise, ccw: counterclockwise, uc: unitcell leg
+    @tensor T1C1[ccw, cw, u] := T1[α, ccw, u] * C1[cw, α]
+    @tensor C4T1C1[ccw, cw, u] := C4[α, ccw] * T1C1[α, cw, u]
+    @tensor T4C4T1C1[ccw, cw, u, l] := T4[α, ccw, l] * C4T1C1[α, cw, u]
+    @tensor C3T4C4T1C1[ccw, cw, u, l] := C3[α, ccw] * T4C4T1C1[α, cw, u, l]
+    @tensor T3C3T4C4T1C1[ccw, cw, u, l, d] := T3[ccw, α, d] * C3T4C4T1C1[α, cw, u, l]
+    @tensor C2T3C3T4C4T1C1[ccw, cw, u, l, d] := C2[ccw, α] * T3C3T4C4T1C1[α, cw, u, l, d]
+    @tensor E[u, l, d, r] := T2[β, α, r] * C2T3C3T4C4T1C1[α, β, u, l, d]
+    E = permutedims(E, (1, 4, 3, 2)); #u,r,d,l
+    E = reshape(E, (D[1], D[1], D[2], D[2], D[3], D[3], D[4], D[4]));
+
+    # Contract with bra and ket tensors
+    @tensor rho[pk, pb] := E[αk, αb, βk, βb, γk, γb, δk, δb] * conj(A)[αk, βk, γk, δk, pk] * A[αb, βb, γb, δb, pb];
+
+    return rho
+
+end
+
+
+"""
+    do_full_contraction(unitcell::UnitCell, loc::CartesianIndex)
+
+    Contracts:
+
+                C4(x-1, y-1) -- T1(x, y-1) -- C1(x+1, y-1)
+                    |               |             |
+                    |               |             |
+                T4(x-1, y)   --   R(x,y)   -- T2(x+1, y)
+                    |               |             |
+                    |               |             |
+                C3(x-1, y+1) -- T3(x, y+1) -- C2(x+1, y+1)
+
+"""
+function do_full_contraction_bigmem(unitcell::UnitCell, loc::CartesianIndex)
+    C1 = unitcell(Environment, loc + CartesianIndex(1, -1)).C[1];
+    C2 = unitcell(Environment, loc + CartesianIndex(1, 1)).C[2];
+    C3 = unitcell(Environment, loc + CartesianIndex(-1, 1)).C[3];
+    C4 = unitcell(Environment, loc + CartesianIndex(-1, -1)).C[4];
+
+    T1 = unitcell(Environment, loc  + CartesianIndex(0, -1)).T[1];
+    T2 = unitcell(Environment, loc + CartesianIndex(1, 0)).T[2];
+    T3 = unitcell(Environment, loc + CartesianIndex(0, 1)).T[3];
+    T4 = unitcell(Environment, loc + CartesianIndex(-1, 0)).T[4];
+
+
+    R = unitcell(ReducedTensor, loc).R;
+
+    @tensor C4T4C3[ur, cr, dr] := C4[ur, α] * T4[α, β, cr] * C3[β, dr];
+    @tensor T1RT3[ul, cl, dl, ur, cr, dr] := T1[ur, ul, α] * R[α, cr, β, cl] * T3[dr, dl, β];
+    @tensor C1T2C2[ul, cl, dl] := C1[α, ul] * T2[α, β, cl] * C2[β, dl];
+
+    λ = 0;
+    @tensor λ = C4T4C3[α, β, γ] * T1RT3[α, β, γ, δ, ϵ, ζ] * C1T2C2[δ, ϵ, ζ];
+
+    return λ
+end
+
+
+###############
+# Old methods #
+###############
+
+#= """
     implode(R::Array{T, 4}, E::Environment) where {T}
 
 
@@ -272,11 +448,11 @@ end
 """
 function implode(R::Array{T, 4}, E::Environment) where {T}
     # cw: clockwise, ccw: counterclockwise, uc: unitcell leg
-    @tensor TCu[ccw, cw, u] :=  E.T[1][α, ccw, u] * E.C[1][cw, α]
-    @tensor Eu[ccw, cw, u] :=  E.C[4][α, ccw] * TCu[α, cw, u]
+    @tensor TCu[ccw, cw, u] := E.T[1][α, ccw, u] * E.C[1][cw, α]
+    @tensor Eu[ccw, cw, u] := E.C[4][α, ccw] * TCu[α, cw, u]
 
-    @tensor TCd[ccw, cw, d] :=  E.T[3][α, ccw, d] * E.C[2][ccw, α]
-    @tensor Ed[ccw, cw, d] :=  E.C[3][cw, α] * TCd[α, ccw, d]
+    @tensor TCd[ccw, cw, d] := E.T[3][α, ccw, d] * E.C[2][ccw, α]
+    @tensor Ed[ccw, cw, d] := E.C[3][cw, α] * TCd[α, ccw, d]
 
     # Contracts environment cyclicically??
     @tensor Eur[ccw, cw, u, r] := Eu[ccw, α, u] * E.T[2][α, cw, r]
@@ -334,13 +510,54 @@ function implode(R::Vector{Array{T, 4}}, E::Environment) where {T}
 
     return RE
 
-end
+end =#
 
 
-function overlap(ket::UnitCell, bra::UnitCell)
-    if ket.D != bra.D
-        # Initialize environments
+#= function calculate_exp_val(unitcell::UnitCell, operator::Operator{X}) where {X}
+    # Extract environment
+    # Apply operator to ket layer
+    # Contract
 
-    else ket.D == ket.D
+    if operator.nsites == 1
+        T = cast_tensor(Tensor, unitcell.S[operator.loc[1]]);
+        @tensor TO[u, r, d, l, p] := T[u, r, d, l, α] * operator.O[α, p];
+        @tensor RO[u, r, d, l] := TO[uk, r, d, ];
+
+        @tensor TOT[uk, ub, rk, rb, dk, db, lk, lb] := TO[uk, rk, dk, lk, α] * conj(T)[ub, rb, db, lb, α]
+        TOT = reshape(TOT, (T.D^2, T.D^2, T.D^2, T.D^2));
+
+        exp_val = implode(TOT, unitcell.E[operator.loc[1]]);
+
+    elseif operator.nsites == 2 # only two-site NN case
+        @info "Only for NN operators"
+        T1 = cast_tensor(Tensor, unitcell.S[operator.loc[1]]);
+        T2 = cast_tensor(Tensor, unitcell.S[operator.loc[2]]);
+        E1 = unitcell.E[operator.loc[1]];
+        E2 = unitcell.E[operator.loc[2]];
+
+        if operator.loc[1][1] == operator.loc[2][1] # operator along horizontal bonds
+            @tensor T1T2O[u1, u2, r2, d1, d2, l1, p1, p2] := T1[u1, α, d1, l1, β] *
+            T2[u2, r2, d2, α, γ] * operator.O[p1, p2, β, γ];
+
+            E1E2 = Environment(
+            [E1.C[4] E2.C[1] E2.C[2] E1.C[3]],
+            [E1.T[4]; E1.T[1]; E2.T[1:3]; E1.T[3]], operator.loc[1]); # environment is rotated CW π/2
+
+            exp_val = implode(T1T2O, E1E2);
+
+        elseif operator.loc[1][2] == operator.loc[2][2] # operator along vertical bonds
+            @tensor T1T2O[u1, r1, r2, d2, l1, l2, p1, p2] := T1[u1, r1, α, l1, β] *
+            T2[α, r2, d2, l2, γ] * operator.O[p1, p2, β, γ];
+
+            E1E2 = Environment(
+            [E1.C[1] E2.C[2] E2.C[3] E1.C[4]],
+            [E1.T[1:2]; E2.T[2:4]; E1.T[4]], operator.loc[1]);
+
+            exp_val = implode(T1T2O, E1E2);
+
+        end
+
     end
-end
+
+    return exp_val
+end =#

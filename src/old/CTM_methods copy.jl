@@ -44,9 +44,9 @@ function calculate_error_ctm(old::UnitCell, new::UnitCell, simulation::Simulatio
     ϵ = 0.0;
     if simulation.ctm_convergence == OnlyCorners
         for coord ∈ coord_unique
-            if new.S[coord].symmetry == C4
+            if new.R[coord].symmetry == C4
                 ϵ += sum([abs(tr(new.E[coord].C[n] - old.E[coord].C[n])) for n ∈ 1:4]);
-            else new.S[coord].symmetry == XY
+            else new.R[coord].symmetry == XY
                 ϵ += sum([opnorm(new.E[coord].C[n] - old.E[coord].C[n]) for n ∈ 1:4]);
             end
         end

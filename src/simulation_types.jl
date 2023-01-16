@@ -2,13 +2,13 @@
 #abstract type Simulation end #! already defined in ipeps_ctm module
 
 #= Structure for a ground state simple-update optimization =#
-mutable struct GROUNDSTATE_SU2 <: Simulation
+mutable struct GROUNDSTATE_SU <: Simulation
 
     #= Input parameters =#
     hamiltonian::Hamiltonian
 
     ctm_type # Type of renormalization for CTM
-    ctm_Χ::Int64
+    Χ::Int64
     ctm_convergence # Convergence criteria for CTM
     max_ctm_steps::Int64
     tol_ctm::Float64
@@ -32,5 +32,26 @@ mutable struct GROUNDSTATE_SU2 <: Simulation
     observables::Vector{Operator}
     expectation_values::Vector{Vector{Float64}}
 
-    GROUNDSTATE_SU2() = new();
+    GROUNDSTATE_SU() = new();
+end
+
+#= Structure for a generic CTM calculation =#
+mutable struct GENERIC_CTM <: Simulation
+
+
+    ctm_type # Type of renormalization for CTM
+    Χ::Int64
+    ctm_convergence # Convergence criteria for CTM
+    max_ctm_steps::Int64
+    tol_ctm::Float64
+    tol_energy::Float64
+
+    #= Output =#
+    conv_ctm_steps::Int64 # Number of CTM steps used for convergence
+    ctm_error::Float64
+
+    observables::Vector{Operator}
+    expectation_values::Vector{Vector{Float64}}
+
+    GENERIC_CTM() = new();
 end

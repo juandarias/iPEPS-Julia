@@ -27,7 +27,7 @@
     The indices of the environment bonds are labelled in ascending order clockwise, with the first index at 12 o'clock, e.g. the corner C1 elements are labelled C1(down, left).
     The index corresponding to auxiliary bonds are always the last ones.
 """
-struct Environment{U}
+struct Environment{U<:Union{Float64, ComplexF64}}
     loc::Tuple #? Shall it accept multiple locations, e.g. for environment of multiple sites
     "Corner tensors"
     C::Vector{Array{U,2}}
@@ -38,27 +38,27 @@ struct Environment{U}
     spectra::Vector{Vector{Float64}}
     TS::Vector{String} #! debug
 
-    function Environment(C::Vector{Array{U,2}}, T::Vector{Array{U,3}}, loc::Tuple) where {U}
+    function Environment(C::Vector{Array{U,2}}, T::Vector{Array{U,3}}, loc::Tuple) where {U<:Union{Float64, ComplexF64}}
         Χ = size(T[1], 1);
         spectra = fill(ones(Χ), 4);
         TS = fill("s_", 4); #! debug
-        new{U}(loc, copy(C), copy(T), Χ, spectra, TS)
+        new{U}(loc, deepcopy(C), deepcopy(T), Χ, spectra, TS)
     end
 end
 
-function Environment{U}(Χ::Int64, D::Int64, loc::Tuple) where {U}
+#= function Environment{U}(Χ::Int64, D::Int64, loc::Tuple) where {U}
     Ci = rand(U, Χ, Χ);
     Ci = normalize(Ci); #! Note Ci is not symmetrical
     Ti = rand(U, Χ, Χ, D^2);
     Ti = normalize(Ti);
     Environment([Ci, Ci, Ci, collect(transpose(Ci))], fill(Ti, 4), loc)
-end
+end =#
 
 
 #= Implemented for the simplest case i.e. a translational and rotational invariant state
     with a 1x1 unitcell =#
 
-mutable struct Tensor{T}
+mutable struct Tensor{T<:Union{Float64, ComplexF64}}
     "The last dimension corresponds to the physical space. Auxiliary indices
     are labelled clockwise"
     A::Array{T,5}
@@ -66,9 +66,9 @@ mutable struct Tensor{T}
     d::Int64
     symmetry::LatticeSymmetry
 
-    Tensor{T}() where {T} = new{T}();
+    Tensor{T}() where {T<:Union{Float64, ComplexF64}} = new{T}();
 
-    function Tensor(Ai::Array{T,5}, symmetry::X = UNDEF) where {T, X<:LatticeSymmetry}
+    function Tensor(Ai::Array{T,5}, symmetry::X = UNDEF) where {T<:Union{Float64, ComplexF64}, X<:LatticeSymmetry}
         D = collect(size(Ai)[1:4]);
         d = size(Ai, 5);
         new{T}(Ai, D, d, symmetry);
@@ -76,14 +76,21 @@ mutable struct Tensor{T}
 
 end
 
-function Tensor{T}(D::Int64, symmetry::X = UNDEF) where {T, X<:LatticeSymmetry}
+function Tensor{T}(D::Int64, symmetry::X = UNDEF) where {T<:Union{Float64, ComplexF64}, X<:LatticeSymmetry}
     d = 2;
     A = rand(T, [D, D, D, D, d]...);
     A = symmetrize(A; symmetry = symmetry);
     Tensor(A, symmetry);
 end
 
-mutable struct SimpleUpdateTensor{T}
+function Tensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T<:Union{Float64, ComplexF64}, X<:LatticeSymmetry}
+    d = 2;
+    A = rand(T, [D d]...);
+    A = symmetrize(A; symmetry = symmetry);
+    Tensor(A, symmetry);
+end
+
+mutable struct SimpleUpdateTensor{T<:Union{Float64, ComplexF64}}
     "The last dimension corresponds to the physical space"
     S::Array{T,5}
     D::Vector{Int64}
@@ -93,12 +100,12 @@ mutable struct SimpleUpdateTensor{T}
     weights::Vector{Vector{Float64}}
     symmetry::LatticeSymmetry
 
-    SimpleUpdateTensor{T}() where {T} = new{T}();
+    SimpleUpdateTensor{T}() where {T<:Union{Float64, ComplexF64}} = new{T}();
 
     function SimpleUpdateTensor(
         Si::Array{T,5},
-        weights::Vector{Vector{Float64}},
-        symmetry::LatticeSymmetry = UNDEF) where {T}
+        weights::Vector{Vector{T}},
+        symmetry::LatticeSymmetry = UNDEF) where {T<:Union{Float64, ComplexF64}}
         #D = size(Si, 1);
         D = collect(size(Si)[1:4]);
         d = size(Si, 5);
@@ -106,7 +113,7 @@ mutable struct SimpleUpdateTensor{T}
     end
 end
 
-function SimpleUpdateTensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T, X<:LatticeSymmetry}
+function SimpleUpdateTensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T<:Union{Float64, ComplexF64}, X<:LatticeSymmetry}
     d = 2;
 
     #= Generate symmetric tensor =#
@@ -141,15 +148,15 @@ end
 #    SimpleUpdateTensor(Si, fill(λi, 4), symmetry);
 #end
 
-mutable struct ReducedTensor{T}
+mutable struct ReducedTensor{T<:Union{Float64, ComplexF64}}
     R::Array{T,4}
-    D::Vector{Int64}
+    D::Vector{Int64} #! here D is the product of ket and bra D's
     symmetry::LatticeSymmetry
-    E::Environment{T}
+    E::Environment{T} #! this field is unused
 
-    ReducedTensor{T}() where {T} = new{T}();
+    ReducedTensor{T}() where {T<:Union{Float64, ComplexF64}} = new{T}();
 
-    function ReducedTensor(R::Array{T,4}, symmetry) where {T}
+    function ReducedTensor(R::Array{T,4}, symmetry) where {T<:Union{Float64, ComplexF64}}
         D = collect(size(R));
         new{T}(R, D, symmetry);
     end
@@ -157,7 +164,7 @@ end
 
 
 #= Considering only single and two-site ops =#
-mutable struct Operator{T}
+mutable struct Operator{T<:Union{Float64, ComplexF64}}
     O::Array{T};
     loc::Vector{CartesianIndex{2}};
     nsites::Int64;
@@ -169,29 +176,40 @@ mutable struct Operator{T}
 
 end
 
-mutable struct UnitCell{T}
+mutable struct UnitCell{T<:Union{Float64, ComplexF64}}
     D::Int64
     dims::Tuple
     pattern::Array{Char}
     symmetry::LatticeSymmetry
     R::Array{ReducedTensor{T}}
-    S::Array{SimpleUpdateTensor{T}}
+    A::Array{Tensor{T}}
     E::Array{Environment{T}}
 
     UnitCell{T}() where {T} = new{T}();
 
 
-    function UnitCell(R::ReducedTensor{T}) where {T}
+    function UnitCell(R::ReducedTensor{T}) where {T<:Union{Float64, ComplexF64}}
         D = sqrt(R.D);
         pattern = ['a'];
         new{T}(D, (1, 1), pattern, R.symmetry, [R])
     end
 
-    function UnitCell(S::SimpleUpdateTensor{T}) where {T}
+    #= function UnitCell(S::SimpleUpdateTensor{T}) where {T<:Union{Float64, ComplexF64}}
         D = S.D;
         pattern = ['a'];
         R = cast_tensor(ReducedTensor, S);
         new{T}(D, (1, 1), pattern, S.symmetry, [R], [S])
+    end =#
+
+    function UnitCell(
+        D::Int64,
+        dims::Tuple,
+        pattern::Array{Char},
+        symmetry::LatticeSymmetry,
+        R_cell::Array{ReducedTensor{T}}) where {T<:Union{Float64, ComplexF64}}
+
+        new{T}(D, dims, pattern, symmetry, deepcopy(R_cell))
+
     end
 
     function UnitCell(
@@ -200,17 +218,17 @@ mutable struct UnitCell{T}
         pattern::Array{Char},
         symmetry::LatticeSymmetry,
         R_cell::Array{ReducedTensor{T}},
-        S_cell::Array{SimpleUpdateTensor{T}}) where {T}
+        A_cell::Array{Tensor{T}}) where {T<:Union{Float64, ComplexF64}}
 
-        new{T}(D, dims, pattern, symmetry, copy(R_cell), copy(S_cell))
+        new{T}(D, dims, pattern, symmetry, deepcopy(R_cell), deepcopy(A_cell))
 
     end
 
 end
 
-function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T}
+function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 
-    S_cell = Array{SimpleUpdateTensor{T}, 2}(undef,  size(pattern));
+    A_cell = Array{Tensor{T}, 2}(undef,  size(pattern));
     R_cell = Array{ReducedTensor{T}, 2}(undef,  size(pattern));
     Ni = size(pattern, 1);
     Nj = size(pattern, 2);
@@ -220,54 +238,54 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::L
 
     if length(unique_tensors) != length(pattern) # for unit-cell with repeating tensors
         for type_tensor ∈ unique_tensors
-            Si = SimpleUpdateTensor{T}(fill(D, 4), symmetry);
+            Ai = Tensor{T}(D, symmetry);
             coords = findall(t -> t == type_tensor, pattern);
             for coord in coords
-                S_cell[coord] = Si;
-                R_cell[coord] = cast_tensor(ReducedTensor, Si);
+                A_cell[coord] = Ai;
+                R_cell[coord] = cast_tensor(ReducedTensor, Ai);
             end
         end
     else # if minimal unit-cell consists of no repeating tensors
         for i ∈ 1:Ni, j ∈ 1:Nj
-            S_cell[i,j] = SimpleUpdateTensor{T}(fill(D, 4), symmetry);
-            R_cell[i,j] = cast_tensor(ReducedTensor, S_cell[i,j]);
+            A_cell[i,j] = Tensor{T}(D, symmetry);
+            R_cell[i,j] = cast_tensor(ReducedTensor, A_cell[i,j]);
         end
     end
 
     #= Expands minimal unit cell to final unit cell if needed =#
     if Ni == dims[1] && Nj == dims[2]
-        UnitCell(D, dims, pattern, symmetry, R_cell, S_cell)
+        UnitCell(D, dims, pattern, symmetry, R_cell, A_cell)
     elseif Ni < dims[1] || Nj < dims[2]
         pattern_large = Array{Char, 2}(undef, dims);
         R_cell_large = Array{ReducedTensor{T}, 2}(undef, dims);
-        S_cell_large = Array{SimpleUpdateTensor{T}, 2}(undef, dims);
+        A_cell_large = Array{Tensor{T}, 2}(undef, dims);
         for i ∈ 1:dims[1], j ∈ 1:dims[2]
             pattern_large[i, j] = pattern[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1]
-            S_cell_large[i, j] = S_cell[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1];
+            A_cell_large[i, j] = A_cell[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1];
             R_cell_large[i, j] = R_cell[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1];
         end
 
-        UnitCell(D, dims, pattern_large, symmetry, R_cell_large, S_cell_large)
+        UnitCell(D, dims, pattern_large, symmetry, R_cell_large, A_cell_large)
     end
 end
 
-function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 1}, symmetry::LatticeSymmetry = XY) where {T}
+function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 1}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 
 
-    Si = SimpleUpdateTensor{T}(D, symmetry);
-    Ri = cast_tensor(ReducedTensor, Si);
+    Ai = Tensor{T}(D, symmetry);
+    Ri = cast_tensor(ReducedTensor, Ai);
 
     pattern_large = Array{Char, 2}(undef, dims);
     R_cell_large = Array{ReducedTensor{T}, 2}(undef, dims);
-    S_cell_large = Array{SimpleUpdateTensor{T}, 2}(undef, dims);
+    A_cell_large = Array{Tensor{T}, 2}(undef, dims);
 
     for i ∈ 1:dims[1], j ∈ 1:dims[2]
         pattern_large[i, j] = pattern[1]
-        S_cell_large[i, j] = Si;
+        A_cell_large[i, j] = Ai;
         R_cell_large[i, j] = Ri;
     end
 
-    UnitCell(D, dims, pattern_large, symmetry, R_cell_large, S_cell_large)
+    UnitCell(D, dims, pattern_large, symmetry, R_cell_large, A_cell_large)
 
 end
 
@@ -275,44 +293,32 @@ function UnitCell(
     pattern::Array{Char},
     symmetry::LatticeSymmetry,
     R_cell::Array{ReducedTensor{T}},
-    S_cell::Array{SimpleUpdateTensor{T}}) where {T}
+    A_cell::Array{Tensor{T}}) where {T<:Union{Float64, ComplexF64}}
 
-    dims = size(S_cell);
-    D = size(S_cell[1,1].S, 1);
+    dims = size(A_cell);
+    D = size(A_cell[1,1].A, 1);
 
-    UnitCell(D, dims, pattern, symmetry, R_cell, S_cell);
+    UnitCell(D, dims, pattern, symmetry, R_cell, A_cell);
 end
 
-
-function UnitCell(
-    pattern::Array{Char},
-    symmetry::LatticeSymmetry,
-    S_cell::Array{SimpleUpdateTensor{T}}) where {T}
-
-    dims = size(S_cell);
-    D = size(S_cell[1,1].S, 1);
-
-    R_cell = Array{ReducedTensor{T}, 2}(undef,  dims);
-
-    for i ∈ 1:dims[1], j ∈ 1:dims[2]
-        R_cell[i,j] = cast_tensor(ReducedTensor, S_cell[i,j]);
-    end
-
-    @assert "Throws a conversion error"
-
-    UnitCell(D, dims, pattern, symmetry, R_cell, S_cell);
+function UnitCell(R_cell::Array{ReducedTensor{T}}) where {T<:Union{Float64, ComplexF64}}
+    dims = size(R_cell);
+    D = 0;
+    pattern = [Char(i * dims[1] + j) for i ∈ 0:dims[1]-1, j ∈ 1:dims[2]];
+    symmetry = R_cell[1,1].symmetry;
+    UnitCell(D, dims, pattern, symmetry, R_cell)
 end
 
-function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T}
+function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T<:Union{Tensor, ReducedTensor, Environment}}
 
     loc = coord(loc, uc.dims);
 
-    if T == SimpleUpdateTensor
-        return uc.S[loc]
+    if T == Tensor
+        return deepcopy(uc.A[loc])
     elseif T == ReducedTensor
-        return uc.R[loc]
+        return deepcopy(uc.R[loc])
     elseif T == Environment
-        return uc.E[loc]
+        return deepcopy(uc.E[loc])
     end
 
 end

@@ -39,7 +39,7 @@ end
 
 function do_ctmrg_iteration!(
     unitcell::UnitCell{T},
-    projectors::Projectors{EachMove}) where {T}
+    projectors::Projectors{EachMove}) where {T<:Union{Float64, ComplexF64}}
 
     Nx = unitcell.dims[1];
     Ny = unitcell.dims[2];
@@ -538,9 +538,8 @@ function calc_projectors_ctmrg!(
 end
 
 
-function update_tensors!(uc::UnitCell, tensors::Vector{T}, direction::Direction, loc::CartesianIndex; normalize::Bool = true) where {T<:AbstractArray}
+function update_tensors!(uc::UnitCell, tensors::Vector{T}, direction::Direction, loc::CartesianIndex; renormalize::Bool = true) where {T<:AbstractArray}
 
-    #@info "Updating tensors move $direction and loc $loc"
 
     if direction == UP
         pos = [4, 1, 1];
@@ -552,7 +551,7 @@ function update_tensors!(uc::UnitCell, tensors::Vector{T}, direction::Direction,
         pos = [3, 4, 4];
     end
 
-    if normalize == true
+    if renormalize == true
         uc.E[loc].C[pos[1]] = tensors[1]/opnorm(tensors[1]);
         uc.E[loc].T[pos[2]] = tensors[2]/norm(tensors[2]);
         uc.E[loc].C[pos[3]] = tensors[3]/opnorm(tensors[3]);
@@ -583,7 +582,7 @@ function factorize_rho_sym(rho::Array{T,2}, Χ::Int, symmetry::LatticeSymmetry) 
     end
 end
 
-function factorize_rho(rho::Array{T,2}, Χ::Int) where {T}
+function factorize_rho(rho::Array{T,2}, Χ::Int64) where {T<:Union{Float64, ComplexF64}}
 
     U, S, V = svd(rho);
     Χ > length(S) && (Χ = length(S);)

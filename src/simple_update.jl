@@ -83,7 +83,7 @@ end
 
 function time_evolution_su(unitcell::UnitCell, hamiltonian::Hamiltonian, su_sweep::Simulation)
 
-    initialize_environment!(unitcell, su_sweep.ctm_Χ);
+    initialize_environment!(unitcell, su_sweep.Χ);
     projectors = Projectors{su_sweep.ctm_type}();
     energy_ver = [];
     energy_hor = [];

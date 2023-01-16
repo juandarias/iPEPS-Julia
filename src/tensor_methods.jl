@@ -2,7 +2,7 @@
 # General methods applicable to tensors and its networks #
 ##########################################################
 
-function cast_tensor!(R::ReducedTensor, S::SimpleUpdateTensor)
+function cast_tensor!(R::ReducedTensor, S::SimpleUpdateTensor; renormalize::Bool = false)
 
     sqrtW =  [sqrt.(S.weights[n]) for n ∈ eachindex(S.weights)];
 
@@ -13,12 +13,13 @@ function cast_tensor!(R::ReducedTensor, S::SimpleUpdateTensor)
 
     @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := L[uk, rk, dk, lk, α] * conj(L)[ub, rb, db, lb, α]
 
-    R.R = reshape(LLdag, (size(S.S)[1:4]).^2);
+    renormalize == false && (R.R = reshape(LLdag, (size(S.S)[1:4]).^2));
+    renormalize == true && (R.R = normalize(reshape(LLdag, (size(S.S)[1:4]).^2)));
     R.D = (S.D).^2;
 end
 
 
-function cast_tensor(::Type{ReducedTensor}, S::SimpleUpdateTensor{T}) where {T}
+function cast_tensor(::Type{ReducedTensor}, S::SimpleUpdateTensor; renormalize::Bool = false)
 
 
     sqrtW =  [sqrt.(S.weights[n]) for n ∈ eachindex(S.weights)];
@@ -31,16 +32,18 @@ function cast_tensor(::Type{ReducedTensor}, S::SimpleUpdateTensor{T}) where {T}
     @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := L[uk, rk, dk, lk, α] * conj(L)[ub, rb, db, lb, α]
 
     R = reshape(LLdag, (size(S.S)[1:4]).^2);
+    renormalize == true && (R = normalize(R);)
 
     return ReducedTensor(R, S.symmetry)
 end
 
-function cast_tensor(::Type{ReducedTensor}, A::Tensor{T}) where {T}
+function cast_tensor(::Type{ReducedTensor}, A::Tensor; renormalize::Bool = false)
 
 
     @tensor LLdag[uk, ub, rk, rb, dk, db, lk, lb] := A.A[uk, rk, dk, lk, α] * conj(A.A)[ub, rb, db, lb, α]
 
     R = reshape(LLdag, (size(A.A)[1:4]).^2);
+    renormalize == true && (R = normalize(R);)
 
     return ReducedTensor(R, A.symmetry)
 end
@@ -62,7 +65,6 @@ end
 
 function cast_tensor(::Type{Tensor}, S::SimpleUpdateTensor)
 
-
     sqrtW =  [sqrt.(S.weights[n]) for n ∈ eachindex(S.weights)];
 
     @tensor X[u, r, d, l, p] := diagm(sqrtW[1])[u, α] * S.S[α, r, d, l, p]
@@ -70,25 +72,24 @@ function cast_tensor(::Type{Tensor}, S::SimpleUpdateTensor)
     @tensor X[u, r, d, l, p] := diagm(sqrtW[3])[d, α] * X[u, r, α, l, p]
     @tensor X[u, r, d, l, p] := diagm(sqrtW[4])[l, α] * X[u, r, d, α, p]
 
-
     return Tensor(X, S.symmetry)
 end
 
 
-function symmetrize(C::Array{T,2}; normalize::Bool = true) where {T}
+function symmetrize(C::Array{T,2}; renormalize::Bool = true) where {T}
     C = C + adjoint(C);
-    normalize == true && return C/norm(C)
-    normalize == false && return C
+    renormalize == true && return C/norm(C)
+    renormalize == false && return C
 end
 
-function symmetrize(T::Array{X,3}; normalize::Bool = true) where {X}
+function symmetrize(T::Array{X,3}; renormalize::Bool = true) where {X}
     T = T + permutedims(T, (2, 1, 3));
     #T = T + conj(permutedims(T, (2, 1, 3)));
-    normalize == true && return T/norm(T)
-    normalize == false && return T
+    renormalize == true && return T/norm(T)
+    renormalize == false && return T
 end
 
-function symmetrize(S::Array{T,5}; normalize::Bool = true, hermitian::Bool = true, symmetry::LatticeSymmetry = XY) where {T}
+function symmetrize(S::Array{T,5}; renormalize::Bool = true, hermitian::Bool = true, symmetry::LatticeSymmetry = XY) where {T}
 
     if symmetry == XY
         S = S + permutedims(S, (3, 2, 1, 4, 5)) + permutedims(S, (1, 4, 3, 2, 5)) + permutedims(S, (3, 4, 1, 2, 5));
@@ -100,11 +101,11 @@ function symmetrize(S::Array{T,5}; normalize::Bool = true, hermitian::Bool = tru
         S = Ssym;
     end
     hermitian == true && (S = S + conj(S));
-    normalize == true && return S/norm(S)
-    normalize == false && return S
+    renormalize == true && return S/norm(S)
+    renormalize == false && return S
 end
 
-function tensor_svd(A::Array{T}, indices_partition::Vector{Vector{Int64}}) where {T}
+function tensor_svd(A::Array{T}, indices_partition::Vector{Vector{Int64}}) where {T<:Union{ComplexF64, Float64}}
     A = reshape(A, (prod(size(A)[indices_partition[1]], prod(size(A)[indices_partition[2]]))));
     fA = svd(A);
     u = reshape(fA.U, (size(A)[indices_partition[1]]..., size(fA.U, 2)));

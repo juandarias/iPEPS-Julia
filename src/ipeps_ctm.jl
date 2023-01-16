@@ -1,6 +1,6 @@
 module ipeps_ctm
 
-    @info "Code is not type-stable, leading to long compilation times. See https://www.juliabloggers.com/writing-type-stable-julia-code/ and https://blog.sintef.com/industry-en/writing-type-stable-julia-code/ for tips on how to fix this!"
+    #@info "Code is not type-stable, leading to long compilation times. See https://www.juliabloggers.com/writing-type-stable-julia-code/ and https://blog.sintef.com/industry-en/writing-type-stable-julia-code/ for tips on how to fix this! and https://docs.julialang.org/en/v1/manual/performance-tips/#man-code-warntype"
     ###########
     # Modules #
     ###########
@@ -8,7 +8,7 @@ module ipeps_ctm
     import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!
     import Combinatorics: permutations
     using TensorOperations
-    using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
+    #using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
 
 
     ###############
@@ -33,9 +33,12 @@ module ipeps_ctm
     export LatticeSymmetry, R4, XY, UNDEF
 
     #= iPEPS methods =#
-    export initialize_environment!, generate_environment_tensors
-    export calculate_exp_val
-    export implode #? Is there a better name?
+    export initialize_environment!, reinitialize_environment
+    export apply_operator
+    export overlap
+    export do_full_contraction
+    export calculate_rdm
+
 
     #= SU methods =#
     #export update_cell!
@@ -86,7 +89,7 @@ module ipeps_ctm
     ##########
     # Others #
     ##########
-    @precompile_signatures(ipeps_ctm)
+    #@precompile_signatures(ipeps_ctm)
 
     include("precompiles.jl")
     _precompile_();
