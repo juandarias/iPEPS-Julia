@@ -8,7 +8,7 @@ function load_sutensor_matlab(folder, filename)
     return SimpleUpdateTensor(S, [wv, wh, wv, wh])
 end
 
-function load_ctm_matlab(filepath, cell_size)
+function load_ctm_matlab(filepath, cell_size; load_environment::Bool = true)
     psi_c = h5open(filepath);
     Ss = Array{SimpleUpdateTensor{ComplexF64}}(undef, cell_size);
     As = Array{Tensor{ComplexF64}}(undef, cell_size);
@@ -18,7 +18,7 @@ function load_ctm_matlab(filepath, cell_size)
 
     for i ∈ 1:cell_size[1] , j ∈ 1:cell_size[2]
 
-        # Read tensors
+        # Read cell tensors
         Re_A = permutedims(read(psi_c["Re_x$(i)y$(j)/A"]), (3, 2, 5, 4, 1));
         Im_A = permutedims(read(psi_c["Im_x$(i)y$(j)/A"]), (3, 2, 5, 4, 1));
         A = Tensor(Re_A + im * Im_A)
@@ -45,78 +45,28 @@ function load_ctm_matlab(filepath, cell_size)
         Rs[i, j] = rA;
 
         # Read environment
-        Cs = Matrix{ComplexF64}[];
-        Ts = Array{ComplexF64, 3}[];
-        for m ∈ 1:4
-            Re_Cm = read(psi_c["Re_x$(i)y$(j)/C$m"])
-            Im_Cm = read(psi_c["Im_x$(i)y$(j)/C$m"])
-            push!(Cs, Re_Cm + im * Im_Cm);
-            Re_Tibk = read(psi_c["Re_x$(i)y$(j)/T$m"]);
-            Im_Tibk = read(psi_c["Im_x$(i)y$(j)/T$m"]);
-            Ti = reshape(Re_Tibk + im * Im_Tibk, (size(Re_Tibk, 1), size(Re_Tibk, 2), :));
-            push!(Ts, Ti);
+        if load_environment == true
+            Cs = Matrix{ComplexF64}[];
+            Ts = Array{ComplexF64, 3}[];
+            for m ∈ 1:4
+                Re_Cm = read(psi_c["Re_x$(i)y$(j)/C$m"])
+                Im_Cm = read(psi_c["Im_x$(i)y$(j)/C$m"])
+                push!(Cs, Re_Cm + im * Im_Cm);
+                Re_Tibk = read(psi_c["Re_x$(i)y$(j)/T$m"]);
+                Im_Tibk = read(psi_c["Im_x$(i)y$(j)/T$m"]);
+                Ti = reshape(Re_Tibk + im * Im_Tibk, (size(Re_Tibk, 1), size(Re_Tibk, 2), :));
+                push!(Ts, Ti);
+            end
+            E = Environment(Cs, Ts, (i, j));
+            Es[i, j] = E
         end
-        E = Environment(Cs, Ts, (i, j));
-        Es[i, j] = E
     end
 
-    return As, Rs, Es
+    load_environment == true && (return As, Rs, Es)
+    return As, Rs
 end
 
 
-function load_ctm_matlab_np(filepath, cell_size)
-    psi_c = h5open(filepath);
-    As = Array{Tensor{ComplexF64}}(undef, cell_size);
-    Rs = Array{ReducedTensor{ComplexF64}}(undef, cell_size);
-    Es = Array{Environment{ComplexF64}}(undef, cell_size);
-    #whs = []; wvs = [];
-
-    for i ∈ 1:cell_size[1] , j ∈ 1:cell_size[2]
-
-        # Read tensors
-        Re_A = read(psi_c["Re_x$(i)y$(j)/A"]);
-        Im_A = read(psi_c["Im_x$(i)y$(j)/A"]);
-        A = Tensor(Re_A + im * Im_A)
-        rA = cast_tensor(ReducedTensor, A;  renormalize = true);
-
-        #= # SU tensors: first remove weights from tensor
-        A0W = SimpleUpdateTensor(A.A, [wv_inv, wh_inv, wv_inv, wh_inv]);
-        A0 = cast_tensor(Tensor, A0W);
-        S = SimpleUpdateTensor(normalize(A0.A), [wv, wh, wv, wh]); =#
-
-        #= # Read SU weights
-        wh = ComplexF64.(diag(read(psi_c["x$(i)y$(j)/wh"])));
-        wh_inv = 1 ./wh;
-
-        push!(whs, wh);
-        wv = ComplexF64.(diag(read(psi_c["x$(i)y$(j)/wv"])));
-        wv_inv = 1 ./wv;
-
-        push!(wvs, wv);
- =#
-
-        As[i, j] = A;
-        #Ss[i, j] = S;
-        Rs[i, j] = rA;
-
-        # Read environment
-        Cs = Matrix{ComplexF64}[];
-        Ts = Array{ComplexF64, 3}[];
-        for m ∈ 1:4
-            Re_Cm = read(psi_c["Re_x$(i)y$(j)/C$m"])
-            Im_Cm = read(psi_c["Im_x$(i)y$(j)/C$m"])
-            push!(Cs, Re_Cm + im * Im_Cm);
-            Re_Tibk = read(psi_c["Re_x$(i)y$(j)/T$m"]);
-            Im_Tibk = read(psi_c["Im_x$(i)y$(j)/T$m"]);
-            Ti = reshape(Re_Tibk + im * Im_Tibk, (size(Re_Tibk, 1), size(Re_Tibk, 2), :));
-            push!(Ts, Ti);
-        end
-        E = Environment(Cs, Ts, (i, j));
-        Es[i, j] = E
-    end
-
-    return As, Rs, Es
-end
 
 
 #= MATLAB method to export a state in a format compatible with load_ctm_matlab

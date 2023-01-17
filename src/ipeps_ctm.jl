@@ -27,13 +27,14 @@ module ipeps_ctm
     export Hamiltonian
 
     #= iPEPS types =#
-    export Tensor, SimpleUpdateTensor, ReducedTensor
+    export Tensor, SimpleUpdateTensor, ReducedTensor, BTensor
     export UnitCell, Environment
     export Operator
     export LatticeSymmetry, R4, XY, UNDEF
 
     #= iPEPS methods =#
     export initialize_environment!, reinitialize_environment
+    export braket_unitcell
     export apply_operator
     export overlap
     export do_full_contraction

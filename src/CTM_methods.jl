@@ -149,6 +149,43 @@ function do_ctmrg_iteration!(
 end
 
 
+function grow_T_tensor(T::Array{X,3}, Aket::Array{X,5}, Abra::Array{X,5}, dir::Direction) where {X<:Union{Float64, ComplexF64}}
+    if dir == UP
+        D_ket = size(Aket, 1);
+        D_bra = size(Abra, 1);
+
+        T = reshape(T, (size(T,1), size(T,2), D_ket, D_bra));
+        @tensor Tket[le, lk, re, rk, dk, db, p] := T[re, le, α, db] * Aket[α, rk, dk, lk, p];
+        @tensor Tbraket[le, lk, lb, re, rk, rb, dk, db] := Tket[le, lk, re, rk, dk, α, β] * conj(Abra)[α, rb, db, lb, β];
+
+    elseif dir == RIGHT
+        D_ket = size(Aket, 2);
+        D_bra = size(Abra, 2);
+
+        T = reshape(T, (size(T,1), size(T,2), D_ket, D_bra));
+        @tensor Tket[ue, uk, de, dk, lk, lb, p] := T[ue, de, α, lb] * Aket[uk, α, dk, lk, p];
+        @tensor Tbraket[ue, uk, ub, de, dk, db, lk, lb] := Tket[ue, uk, de, dk, lk, α, β] * conj(Abra)[ub, α, db, lb, β];
+
+    elseif dir == DOWN
+        D_ket = size(Aket, 3);
+        D_bra = size(Abra, 3);
+
+        T = reshape(T, (size(T,1), size(T,2), D_ket, D_bra));
+        @tensor Tket[le, lk, re, rk, uk, ub, p] := T[le, re, α, ub] * Aket[uk, rk, α, lk, p];
+        @tensor Tbraket[le, lk, lb, le, lk, lb, uk, ub] := Tket[le, lk, re, rk, uk, α, β] * conj(Abra)[ub, rb, α, lb, β];
+
+    elseif dir == LEFT
+        D_ket = size(Aket, 4);
+        D_bra = size(Abra, 4);
+
+        T = reshape(T, (size(T,1), size(T,2), D_ket, D_bra));
+        @tensor Tket[ue, uk, de, dk, rk, rb, p] := T[ue, de, α, ub] * Aket[uk, rk, lk, α, p];
+        @tensor Tbraket[ue, uk, ub, de, dk, db, rk, rb] := Tket[ue, uk, de, dk, rk, α, β] * conj(Abra)[ub, rb, lb, α, β];
+
+    end
+
+end
+
 function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Direction, loc::CartesianIndex)
     E_loc = unitcell(Environment, loc);
     R_loc = unitcell(ReducedTensor, loc);

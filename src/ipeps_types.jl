@@ -90,6 +90,9 @@ function Tensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T<:Union{Float6
     Tensor(A, symmetry);
 end
 
+#Dummy struct for bra tensors
+mutable struct BTensor end
+
 mutable struct SimpleUpdateTensor{T<:Union{Float64, ComplexF64}}
     "The last dimension corresponds to the physical space"
     S::Array{T,5}
@@ -184,6 +187,7 @@ mutable struct UnitCell{T<:Union{Float64, ComplexF64}}
     R::Array{ReducedTensor{T}}
     A::Array{Tensor{T}}
     E::Array{Environment{T}}
+    B::Array{Tensor{T}} #* to store tensors of bra layer required for calculations such as ⟨Ψ|O|Φ⟩
 
     UnitCell{T}() where {T} = new{T}();
 
@@ -225,6 +229,8 @@ mutable struct UnitCell{T<:Union{Float64, ComplexF64}}
     end
 
 end
+
+@info "Consolidate constructors of ``UnitCell``"
 
 function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 
@@ -309,12 +315,23 @@ function UnitCell(R_cell::Array{ReducedTensor{T}}) where {T<:Union{Float64, Comp
     UnitCell(D, dims, pattern, symmetry, R_cell)
 end
 
-function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T<:Union{Tensor, ReducedTensor, Environment}}
+function UnitCell(R_cell::Array{ReducedTensor{T}},
+    A_cell::Array{Tensor{T}}) where {T<:Union{Float64, ComplexF64}}
+    dims = size(R_cell);
+    D = size(A_cell[1,1].A, 1);
+    pattern = [Char(i * dims[1] + j) for i ∈ 0:dims[1]-1, j ∈ 1:dims[2]];
+    symmetry = R_cell[1,1].symmetry;
+    UnitCell(D, dims, pattern, symmetry, R_cell, A_cell)
+end
+
+function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T<:Union{Tensor, BTensor, ReducedTensor, Environment}}
 
     loc = coord(loc, uc.dims);
 
     if T == Tensor
         return deepcopy(uc.A[loc])
+    elseif T == BTensor
+        return deepcopy(uc.B[loc])
     elseif T == ReducedTensor
         return deepcopy(uc.R[loc])
     elseif T == Environment
