@@ -47,17 +47,17 @@ function load_ctm_matlab(filepath, cell_size; load_environment::Bool = true)
         # Read environment
         if load_environment == true
             Cs = Matrix{ComplexF64}[];
-            Ts = Array{ComplexF64, 3}[];
+            Ts = Array{ComplexF64, 4}[];
             for m ∈ 1:4
                 Re_Cm = read(psi_c["Re_x$(i)y$(j)/C$m"])
                 Im_Cm = read(psi_c["Im_x$(i)y$(j)/C$m"])
                 push!(Cs, Re_Cm + im * Im_Cm);
                 Re_Tibk = read(psi_c["Re_x$(i)y$(j)/T$m"]);
                 Im_Tibk = read(psi_c["Im_x$(i)y$(j)/T$m"]);
-                Ti = reshape(Re_Tibk + im * Im_Tibk, (size(Re_Tibk, 1), size(Re_Tibk, 2), :));
+                Ti = Re_Tibk + im * Im_Tibk;
                 push!(Ts, Ti);
             end
-            E = Environment(Cs, Ts, (i, j));
+            E = Environment(Cs, Ts, CartesianIndex(i, j));
             Es[i, j] = E
         end
     end

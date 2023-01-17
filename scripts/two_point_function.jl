@@ -90,6 +90,8 @@ s =10
     @info "Reconverging environment for time $t"
 
     projectors = Projectors{EachMove}(ΨΦ);
+
+    size.(ΨΦ.E[1,1].C)
     error_CTM = update_environment!(ΨΦ, projectors, ctm)
     get_param!(args_dict, "ctm_error", error_CTM);
 

@@ -6,6 +6,7 @@ module ipeps_ctm
     ###########
 
     import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!
+    import Base: +
     import Combinatorics: permutations
     using TensorOperations
     #using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
@@ -56,7 +57,7 @@ module ipeps_ctm
     #= CTM methods =#
     export update_environment!
     export do_ctmrg_iteration!
-    export calc_projectors_ctmrg!
+    export calculate_projectors_ctmrg!
 
     #= General methods =#
     export cast_tensor, cast_tensor!

@@ -28,17 +28,17 @@
     The index corresponding to auxiliary bonds are always the last ones.
 """
 struct Environment{U<:Union{Float64, ComplexF64}}
-    loc::Tuple #? Shall it accept multiple locations, e.g. for environment of multiple sites
+    loc::CartesianIndex #? Shall it accept multiple locations, e.g. for environment of multiple sites
     "Corner tensors"
     C::Vector{Array{U,2}}
     "Column/row tensors. The last index correspond to the system auxiliary space"
-    T::Vector{Array{U,3}}
+    T::Vector{Array{U,4}}
     Χ::Int64
     "Corner matrices spectrum"
     spectra::Vector{Vector{Float64}}
     TS::Vector{String} #! debug
 
-    function Environment(C::Vector{Array{U,2}}, T::Vector{Array{U,3}}, loc::Tuple) where {U<:Union{Float64, ComplexF64}}
+    function Environment(C::Vector{Array{U,2}}, T::Vector{Array{U,4}}, loc::CartesianIndex) where {U<:Union{Float64, ComplexF64}}
         Χ = size(T[1], 1);
         spectra = fill(ones(Χ), 4);
         TS = fill("s_", 4); #! debug
@@ -85,7 +85,7 @@ end
 
 function Tensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T<:Union{Float64, ComplexF64}, X<:LatticeSymmetry}
     d = 2;
-    A = rand(T, [D d]...);
+    A = rand(T, [D..., d]...);
     A = symmetrize(A; symmetry = symmetry);
     Tensor(A, symmetry);
 end
@@ -232,7 +232,7 @@ end
 
 @info "Consolidate constructors of ``UnitCell``"
 
-function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
+#= function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 
     A_cell = Array{Tensor{T}, 2}(undef,  size(pattern));
     R_cell = Array{ReducedTensor{T}, 2}(undef,  size(pattern));
@@ -252,9 +252,9 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::L
             end
         end
     else # if minimal unit-cell consists of no repeating tensors
-        for i ∈ 1:Ni, j ∈ 1:Nj
-            A_cell[i,j] = Tensor{T}(D, symmetry);
-            R_cell[i,j] = cast_tensor(ReducedTensor, A_cell[i,j]);
+        for xy ∈ CartesianIndices(size(pattern))
+            A_cell[xy] = Tensor{T}(D, symmetry);
+            R_cell[xy] = cast_tensor(ReducedTensor, A_cell[xy]);
         end
     end
 
@@ -273,7 +273,7 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::L
 
         UnitCell(D, dims, pattern_large, symmetry, R_cell_large, A_cell_large)
     end
-end
+end =#
 
 function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 1}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 
@@ -285,10 +285,10 @@ function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 1}, symmetry::L
     R_cell_large = Array{ReducedTensor{T}, 2}(undef, dims);
     A_cell_large = Array{Tensor{T}, 2}(undef, dims);
 
-    for i ∈ 1:dims[1], j ∈ 1:dims[2]
-        pattern_large[i, j] = pattern[1]
-        A_cell_large[i, j] = Ai;
-        R_cell_large[i, j] = Ri;
+    for xy ∈ CartesianIndices(dims)
+        pattern_large[xy] = pattern[1]
+        A_cell_large[xy] = Ai;
+        R_cell_large[xy] = Ri;
     end
 
     UnitCell(D, dims, pattern_large, symmetry, R_cell_large, A_cell_large)

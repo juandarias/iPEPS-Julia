@@ -1,3 +1,5 @@
++(xy::CartesianIndex, ij::Tuple{Int64, Int64}) = xy + CartesianIndex(ij)
+
 function coord(xy::CartesianIndex, dims::Tuple{Int64, Int64})
     Nx = dims[1];
     Ny = dims[2];
