@@ -232,7 +232,7 @@ end
 
 @info "Consolidate constructors of ``UnitCell``"
 
-#= function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
+function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 
     A_cell = Array{Tensor{T}, 2}(undef,  size(pattern));
     R_cell = Array{ReducedTensor{T}, 2}(undef,  size(pattern));
@@ -252,9 +252,9 @@ end
             end
         end
     else # if minimal unit-cell consists of no repeating tensors
-        for xy ∈ CartesianIndices(size(pattern))
-            A_cell[xy] = Tensor{T}(D, symmetry);
-            R_cell[xy] = cast_tensor(ReducedTensor, A_cell[xy]);
+        for ij ∈ CartesianIndices(size(pattern))
+            A_cell[ij] = Tensor{T}(D, symmetry);
+            R_cell[ij] = cast_tensor(ReducedTensor, A_cell[ij]);
         end
     end
 
@@ -265,15 +265,16 @@ end
         pattern_large = Array{Char, 2}(undef, dims);
         R_cell_large = Array{ReducedTensor{T}, 2}(undef, dims);
         A_cell_large = Array{Tensor{T}, 2}(undef, dims);
-        for i ∈ 1:dims[1], j ∈ 1:dims[2]
-            pattern_large[i, j] = pattern[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1]
-            A_cell_large[i, j] = A_cell[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1];
-            R_cell_large[i, j] = R_cell[mod(i - 1, Ni) + 1, mod(j - 1, Nj) + 1];
+        for ij ∈ CartesianIndices(dims)
+            loc = coord(ij, (Ni, Nj));
+            pattern_large[ij] = pattern[loc]
+            A_cell_large[ij] = A_cell[loc];
+            R_cell_large[ij] = R_cell[loc];
         end
 
         UnitCell(D, dims, pattern_large, symmetry, R_cell_large, A_cell_large)
     end
-end =#
+end
 
 function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 1}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 

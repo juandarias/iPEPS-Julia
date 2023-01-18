@@ -23,9 +23,9 @@ function initialize_environment!(uc::UnitCell{X}) where {X<:Union{Float64, Compl
 
     # if unit-cell consists of unique tensors
     else
-        for xy ∈ CartesianIndices(uc.dims)
-            Cs, Ts = generate_environment_tensors(uc, xy);
-            cell_environment[xy] = Environment(Cs, Ts, xy);
+        for ij ∈ CartesianIndices(uc.dims)
+            Cs, Ts = generate_environment_tensors(uc, ij);
+            cell_environment[ij] = Environment(Cs, Ts, ij);
         end
     end
 
@@ -248,6 +248,58 @@ function apply_operator(state::UnitCell, op::Operator)
     return op_state
 end
 
+"""
+    calculate_rdm(unitcell::UnitCell, loc::CartesianIndex)
+
+
+    Contracts:
+
+    C4(x-1, y-1) -- T1(x, y-1) -- C1(x+1, y-1)
+        |               |             |
+        |               |             |
+    T4(x-1, y)   --   R(x,y)   -- T2(x+1, y)
+        |               |             |
+        |               |             |
+    C3(x-1, y+1) -- T3(x, y+1) -- C2(x+1, y+1)
+
+"""
+function calculate_rdm(unitcell::UnitCell, loc::CartesianIndex)
+    C1 = unitcell(Environment, loc + CartesianIndex(-1, 1)).C[1];
+    C2 = unitcell(Environment, loc + CartesianIndex(1, 1)).C[2];
+    C3 = unitcell(Environment, loc + CartesianIndex(1, -1)).C[3];
+    C4 = unitcell(Environment, loc + CartesianIndex(-1, -1)).C[4];
+
+    T1 = unitcell(Environment, loc  + CartesianIndex(-1, 0)).T[1];
+    T2 = unitcell(Environment, loc + CartesianIndex(0, 1)).T[2];
+    T3 = unitcell(Environment, loc + CartesianIndex(1, 0)).T[3];
+    T4 = unitcell(Environment, loc + CartesianIndex(0, -1)).T[4];
+
+    A = unitcell(Tensor, loc).A;
+    if isdefined(unitcell, :B) == true
+        B = unitcell(BTensor, loc).A;
+    else
+        B = conj(A);
+    end
+
+
+    # cw: clockwise, ccw: counterclockwise, u(k,b): unitcell leg
+    @tensor T1C1[ccw, cw, uk, ub] := T1[α, ccw, uk, ub] * C1[cw, α]
+    @tensor C4T1C1[ccw, cw, uk, ub] := C4[α, ccw] * T1C1[α, cw, uk, ub]
+    @tensor T4C4T1C1[ccw, cw, uk, ub, lk, lb] := T4[α, ccw, lk, lb] * C4T1C1[α, cw, uk, ub]
+    @tensor C3T4C4T1C1[ccw, cw, uk, ub, lk, lb] := C3[α, ccw] * T4C4T1C1[α, cw, uk, ub, lk, lb]
+    @tensor T3C3T4C4T1C1[ccw, cw, uk, ub, lk, lb, dk, db] := T3[ccw, α, dk, db] * C3T4C4T1C1[α, cw, uk, ub, lk, lb]
+    @tensor C2T3C3T4C4T1C1[ccw, cw, uk, ub, lk, lb, dk, db] := C2[ccw, α] * T3C3T4C4T1C1[α, cw, uk, ub, lk, lb, dk, db]
+    @tensor E[uk, ub, lk, lb, dk, db, rk, rb] := T2[β, α, rk, rb] * C2T3C3T4C4T1C1[α, β, uk, ub, lk, lb, dk, db]
+    E = permutedims(E, (1, 2, 7, 8, 5, 6, 3, 4)); #u,r,d,l
+
+    # Contract with bra and ket tensors
+    @tensor rho[pk, pb] := E[αk, αb, βk, βb, γk, γb, δk, δb] * A[αk, βk, γk, δk, pk] * B[αb, βb, γb, δb, pb];
+
+    return rho
+
+end
+
+
 
 #= function overlap(ket::UnitCell{T}, bra::UnitCell{T}, ctm_parms::Simulation; init_env::Bool = true, loc::CartesianIndex=CartesianIndex(1,1)) where {T}
     if ket.D != bra.D
@@ -356,42 +408,6 @@ function do_full_contraction(unitcell::UnitCell, loc::CartesianIndex)
     return λ
 
 end =#
-
-function calculate_rdm(unitcell::UnitCell, loc::CartesianIndex)
-    C1 = unitcell(Environment, loc + CartesianIndex(1, -1)).C[1];
-    C2 = unitcell(Environment, loc + CartesianIndex(1, 1)).C[2];
-    C3 = unitcell(Environment, loc + CartesianIndex(-1, 1)).C[3];
-    C4 = unitcell(Environment, loc + CartesianIndex(-1, -1)).C[4];
-
-    T1 = unitcell(Environment, loc  + CartesianIndex(0, -1)).T[1];
-    T2 = unitcell(Environment, loc + CartesianIndex(1, 0)).T[2];
-    T3 = unitcell(Environment, loc + CartesianIndex(0, 1)).T[3];
-    T4 = unitcell(Environment, loc + CartesianIndex(-1, 0)).T[4];
-
-    A = unitcell(Tensor, loc).A;
-    if isdefined(unitcell, :B) == true
-        B = unitcell(BTensor, loc).A;
-    else
-        B = conj(A);
-    end
-
-
-    # cw: clockwise, ccw: counterclockwise, u(k,b): unitcell leg
-    @tensor T1C1[ccw, cw, uk, ub] := T1[α, ccw, uk, ub] * C1[cw, α]
-    @tensor C4T1C1[ccw, cw, uk, ub] := C4[α, ccw] * T1C1[α, cw, uk, ub]
-    @tensor T4C4T1C1[ccw, cw, uk, ub, lk, lb] := T4[α, ccw, lk, lb] * C4T1C1[α, cw, uk, ub]
-    @tensor C3T4C4T1C1[ccw, cw, uk, ub, lk, lb] := C3[α, ccw] * T4C4T1C1[α, cw, uk, ub, lk, lb]
-    @tensor T3C3T4C4T1C1[ccw, cw, uk, ub, lk, lb, dk, db] := T3[ccw, α, dk, db] * C3T4C4T1C1[α, cw, uk, ub, lk, lb]
-    @tensor C2T3C3T4C4T1C1[ccw, cw, uk, ub, lk, lb, dk, db] := C2[ccw, α] * T3C3T4C4T1C1[α, cw, uk, ub, lk, lb, dk, db]
-    @tensor E[uk, ub, lk, lb, dk, db, rk, rb] := T2[β, α, rk, rb] * C2T3C3T4C4T1C1[α, β, uk, ub, lk, lb, dk, db]
-    E = permutedims(E, (1, 2, 7, 8, 5, 6, 3, 4)); #u,r,d,l
-
-    # Contract with bra and ket tensors
-    @tensor rho[pk, pb] := E[αk, αb, βk, βb, γk, γb, δk, δb] * A[αk, βk, γk, δk, pk] * B[αb, βb, γb, δb, pb];
-
-    return rho
-
-end
 
 #=
 """

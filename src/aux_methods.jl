@@ -1,17 +1,17 @@
-+(xy::CartesianIndex, ij::Tuple{Int64, Int64}) = xy + CartesianIndex(ij)
++(coord::CartesianIndex, ij::Tuple{Int64, Int64}) = coord + CartesianIndex(ij)
 
-function coord(xy::CartesianIndex, dims::Tuple{Int64, Int64})
-    Nx = dims[1];
-    Ny = dims[2];
+function coord(ij::CartesianIndex, dims::Tuple{Int64, Int64})
+    Ni = dims[1];
+    Nj = dims[2];
 
-    Nx != 1 && (xy[1] > Nx || xy[1] < 0) && (xy = CartesianIndex(mod(xy[1], Nx), xy[2]);)
-    Nx == 1 && (xy[1] > Nx || xy[1] < 0) && (xy = CartesianIndex(1, xy[2]);)
+    Ni != 1 && (ij[1] > Ni || ij[1] < 0) && (ij = CartesianIndex(mod(ij[1], Ni), ij[2]);)
+    Ni == 1 && (ij[1] > Ni || ij[1] < 0) && (ij = CartesianIndex(1, ij[2]);)
 
-    Ny != 1 && (xy[2] > Ny || xy[2] < 0) && (xy = CartesianIndex(xy[1], mod(xy[2], Ny));)
-    Ny == 1 && (xy[2] > Ny || xy[2] < 0) && (xy = CartesianIndex(xy[1], 1);)
+    Nj != 1 && (ij[2] > Nj || ij[2] < 0) && (ij = CartesianIndex(ij[1], mod(ij[2], Nj));)
+    Nj == 1 && (ij[2] > Nj || ij[2] < 0) && (ij = CartesianIndex(ij[1], 1);)
 
-    xy[1] == 0 && (xy = CartesianIndex(Nx, xy[2]);)
-    xy[2] == 0 && (xy = CartesianIndex(xy[1], Ny);)
+    ij[1] == 0 && (ij = CartesianIndex(Ni, ij[2]);)
+    ij[2] == 0 && (ij = CartesianIndex(ij[1], Nj);)
 
-    return xy;
+    return ij;
 end

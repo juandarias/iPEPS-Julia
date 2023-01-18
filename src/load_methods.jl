@@ -9,18 +9,28 @@ function load_sutensor_matlab(folder, filename)
 end
 
 function load_ctm_matlab(filepath, cell_size; load_environment::Bool = true)
+
+    """
+    Convention axis and indices in unit-cell
+    ____ x(j)
+    |
+    |
+    y(i)
+
+    Convention indices in arrays: (i,j) i.e (y,x)
+
+    """
     psi_c = h5open(filepath);
-    Ss = Array{SimpleUpdateTensor{ComplexF64}}(undef, cell_size);
     As = Array{Tensor{ComplexF64}}(undef, cell_size);
     Rs = Array{ReducedTensor{ComplexF64}}(undef, cell_size);
     Es = Array{Environment{ComplexF64}}(undef, cell_size);
     #whs = []; wvs = [];
 
-    for i ∈ 1:cell_size[1] , j ∈ 1:cell_size[2]
+    for x ∈ 1:cell_size[1] , y ∈ 1:cell_size[2]
 
         # Read cell tensors
-        Re_A = permutedims(read(psi_c["Re_x$(i)y$(j)/A"]), (3, 2, 5, 4, 1));
-        Im_A = permutedims(read(psi_c["Im_x$(i)y$(j)/A"]), (3, 2, 5, 4, 1));
+        Re_A = permutedims(read(psi_c["Re_x$(x)y$(y)/A"]), (3, 2, 5, 4, 1));
+        Im_A = permutedims(read(psi_c["Im_x$(x)y$(y)/A"]), (3, 2, 5, 4, 1));
         A = Tensor(Re_A + im * Im_A)
         rA = cast_tensor(ReducedTensor, A;  renormalize = false);
 
@@ -40,25 +50,25 @@ function load_ctm_matlab(filepath, cell_size; load_environment::Bool = true)
         push!(wvs, wv);
  =#
 
-        As[i, j] = A;
+        As[y, x] = A;
         #Ss[i, j] = S;
-        Rs[i, j] = rA;
+        Rs[y, x] = rA;
 
         # Read environment
         if load_environment == true
             Cs = Matrix{ComplexF64}[];
             Ts = Array{ComplexF64, 4}[];
             for m ∈ 1:4
-                Re_Cm = read(psi_c["Re_x$(i)y$(j)/C$m"])
-                Im_Cm = read(psi_c["Im_x$(i)y$(j)/C$m"])
+                Re_Cm = read(psi_c["Re_x$(x)y$(y)/C$m"])
+                Im_Cm = read(psi_c["Im_x$(x)y$(y)/C$m"])
                 push!(Cs, Re_Cm + im * Im_Cm);
-                Re_Tibk = read(psi_c["Re_x$(i)y$(j)/T$m"]);
-                Im_Tibk = read(psi_c["Im_x$(i)y$(j)/T$m"]);
+                Re_Tibk = read(psi_c["Re_x$(x)y$(y)/T$m"]);
+                Im_Tibk = read(psi_c["Im_x$(x)y$(y)/T$m"]);
                 Ti = Re_Tibk + im * Im_Tibk;
                 push!(Ts, Ti);
             end
-            E = Environment(Cs, Ts, CartesianIndex(i, j));
-            Es[i, j] = E
+            E = Environment(Cs, Ts, CartesianIndex(y, x));
+            Es[y, x] = E
         end
     end
 
