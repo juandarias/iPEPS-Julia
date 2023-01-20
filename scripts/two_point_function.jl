@@ -16,7 +16,6 @@ include(srcdir("simulation_types.jl"))
 include(srcdir("load_methods.jl"))
 
 
-
 ##############
 # Parameters #
 ##############
