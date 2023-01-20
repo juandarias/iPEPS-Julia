@@ -35,7 +35,7 @@ const SC = get_param!(args_dict, "SC", 15);
 const h = get_param!(args_dict, "h", 2.5);
 
 
-const tol_ctm = get_param!(args_dict, "tol_ctm", 1e-12);
+const tol_ctm = get_param!(args_dict, "tol_ctm", 1e-8);
 const ctm_steps = get_param!(args_dict, "ctm_steps", 20);
 
 
@@ -64,7 +64,7 @@ psit_file_root = "$(SC)x$(SC)_B$(h)_D0$(D0)_Dt$(Dt)_X$(Chi)_t";
 rho_xy = Array{Array{ComplexF64,2},2}(undef, dims);
 
 #for s ∈ step_start:step_end
-s =10
+s =75
     t = s * dt;
 
     # Location of results
@@ -89,8 +89,7 @@ s =10
     @info "Reconverging environment for time $t"
 
     projectors = Projectors{EachMove}(ΨΦ);
-
-    size.(ΨΦ.E[1,1].C)
+    ctm.Χ = 10;
     error_CTM = update_environment!(ΨΦ, projectors, ctm)
     get_param!(args_dict, "ctm_error", error_CTM);
 

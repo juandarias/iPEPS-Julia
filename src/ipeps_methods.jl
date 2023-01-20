@@ -139,7 +139,7 @@ Creates the environments tensors at a unit-cell site for the case where the ket 
 """
 function generate_environment_tensors(ket::UnitCell, bra::UnitCell, iso_ket::Projectors, iso_bra::Projectors, loc::CartesianIndex)
     A = ket(Tensor, loc).A;
-    B = bra(Tensor, loc).A;
+    B = conj(bra(Tensor, loc).A);
     D_A = size(A);
     D_B = size(B);
 

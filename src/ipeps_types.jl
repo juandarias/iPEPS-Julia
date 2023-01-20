@@ -310,7 +310,13 @@ end
 function UnitCell(R_cell::Array{ReducedTensor{T}}) where {T<:Union{Float64, ComplexF64}}
     dims = size(R_cell);
     D = 0;
-    pattern = [Char(i * dims[1] + j) for i ∈ 0:dims[1]-1, j ∈ 1:dims[2]];
+
+    if length(dims) == 1
+        pattern = ['a']
+    else
+        pattern = [Char(i * dims[1] + j) for i ∈ 0:dims[1]-1, j ∈ 1:dims[2]];
+    end
+
     symmetry = R_cell[1,1].symmetry;
     UnitCell(D, dims, pattern, symmetry, R_cell)
 end
@@ -319,7 +325,13 @@ function UnitCell(R_cell::Array{ReducedTensor{T}},
     A_cell::Array{Tensor{T}}) where {T<:Union{Float64, ComplexF64}}
     dims = size(R_cell);
     D = size(A_cell[1,1].A, 1);
-    pattern = [Char(i * dims[1] + j) for i ∈ 0:dims[1]-1, j ∈ 1:dims[2]];
+
+    if length(dims) == 1
+        pattern = ['a']
+    else
+        pattern = [Char(i * dims[1] + j) for i ∈ 0:dims[1]-1, j ∈ 1:dims[2]];
+    end
+
     symmetry = R_cell[1,1].symmetry;
     UnitCell(D, dims, pattern, symmetry, R_cell, A_cell)
 end

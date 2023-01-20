@@ -109,6 +109,7 @@ function tensor_svd(A::Array{T}, indices_partition::Vector{Vector{Int64}}; Χ::I
     rA = reshape(A, (prod(size(A)[indices_partition[1]]), prod(size(A)[indices_partition[2]])));
 
     fA = svd(rA);
+
     (Χ > length(fA.S) || Χ == 0) && (Χ = length(fA.S);)
 
     U = fA.U[:, 1:Χ];
