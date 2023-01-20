@@ -30,6 +30,7 @@ const step_start = get_param!(args_dict, "step_start", 10);
 const step_end = get_param!(args_dict, "step_end", 15);
 const D0 = get_param!(args_dict, "D0", 3);
 const Dt = get_param!(args_dict, "Dt", 4);
+const Chi0 = get_param!(args_dict, "Chi0", 50);
 const Chi = get_param!(args_dict, "Chi", 50);
 const SC = get_param!(args_dict, "SC", 15);
 const h = get_param!(args_dict, "h", 2.5);
@@ -89,7 +90,7 @@ s =75
     @info "Reconverging environment for time $t"
 
     projectors = Projectors{EachMove}(ΨΦ);
-    ctm.Χ = 10;
+    ctm.Χ = 0;
     error_CTM = update_environment!(ΨΦ, projectors, ctm)
     get_param!(args_dict, "ctm_error", error_CTM);
 

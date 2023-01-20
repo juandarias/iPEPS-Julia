@@ -95,7 +95,7 @@ function do_ctmrg_iteration!(
         unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
 
         #= Right move for every unit-cell tensor. Sweeps from right to left, column by column =#
-        for j ∈ 1:Nj
+        for j ∈ 0:Nj-1
 
             # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
             for i ∈ 0:Ni-1
@@ -121,7 +121,7 @@ function do_ctmrg_iteration!(
         unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
 
         #= Up move for every unit-cell tensor. Sweeps from top to bottom (y-axis), row by row =#
-        for i ∈ 1:Ni
+        for i ∈ 0:Ni-1
 
             # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
             for j ∈ 0:Nj-1
@@ -147,7 +147,7 @@ function do_ctmrg_iteration!(
         unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
 
         #= Down move for every unit-cell tensor. Sweeps from bottom to top, row by row =#
-        for i ∈ 1:Ni
+        for i ∈ 0:Ni-1
 
             # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
             for j ∈ 0:Nj-1
