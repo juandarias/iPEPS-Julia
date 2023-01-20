@@ -14,12 +14,12 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
     ϵ = 1.0;
     i = 0
 
-    do_ctmrg_iteration!(unitcell, projectors);
+    do_ctmrg_iteration!(unitcell, projectors, Χ = simulation.Χ);
     while ϵ > simulation.tol_ctm
         i += 1;
 
         Eref = deepcopy(unitcell.E)
-        do_ctmrg_iteration!(unitcell, projectors);
+        do_ctmrg_iteration!(unitcell, projectors, Χ = simulation.Χ);
         ϵ = calculate_error_ctm(Eref, unitcell.E);
 
         @info "CTM iteration $i, convergence error = $(round(abs(ϵ), sigdigits = 4))";
@@ -37,9 +37,25 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
 end
 
 
+"""
+    do_ctmrg_iteration!(
+    unitcell::UnitCell{T},
+    projectors::Projectors{EachMove}; Χ::Int64=0) where {T<:Union{Float64, ComplexF64}}
+
+
+    Convention axis and indices in unit-cell
+
+    --→ x(j)
+    |
+    ↓
+    y(i)
+
+    Convention indices in arrays: (i,j) i.e (y,x)
+
+"""
 function do_ctmrg_iteration!(
     unitcell::UnitCell{T},
-    projectors::Projectors{EachMove}) where {T<:Union{Float64, ComplexF64}}
+    projectors::Projectors{EachMove}; Χ::Int64=0) where {T<:Union{Float64, ComplexF64}}
 
     Ni = unitcell.dims[1]; # y-axis
     Nj = unitcell.dims[2]; # x-axis
@@ -51,15 +67,14 @@ function do_ctmrg_iteration!(
     ##### Left move #####
     for ij ∈ CartesianIndices(unitcell.dims)
         unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
-        @debug "Updating environment tensors at $ij"
 
         #= Left move for every unit-cell tensor. Sweeps from left to right (x-axis), column by column =#
-        for j ∈ 1:Nj
-            @debug "Left move, adding column $i"
+        for j ∈ 0:Nj-1
+
             # 1) Calculate all projectors along the column, i.e. all P_(i, j+n) for fixed j+n
             for i ∈ 0:Ni-1
                 loc = coord(ij + (i, j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, LEFT); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, LEFT, Χ=Χ); # P_(i,j)
             end
 
             # 2) Absorb column j+n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
@@ -78,13 +93,14 @@ function do_ctmrg_iteration!(
     ##### Right move #####
     for ij ∈ CartesianIndices(unitcell.dims)
         unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
+
         #= Right move for every unit-cell tensor. Sweeps from right to left, column by column =#
         for j ∈ 1:Nj
-            @debug "Right move, adding column $i"
+
             # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
             for i ∈ 0:Ni-1
                 loc = coord(ij + (i, -j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, RIGHT); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, RIGHT, Χ=Χ); # P_(i,j)
             end
 
             # 2) Absorb column j-n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
@@ -103,13 +119,14 @@ function do_ctmrg_iteration!(
     ##### Up move #####
     for ij ∈ CartesianIndices(unitcell.dims)
         unitcell.E = deepcopy(initial_environment); # Reset environment to initial one
+
         #= Up move for every unit-cell tensor. Sweeps from top to bottom (y-axis), row by row =#
         for i ∈ 1:Ni
-            @debug "Up move, adding row $j"
+
             # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
             for j ∈ 0:Nj-1
                 loc = coord(ij + (i, j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, UP); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, UP, Χ=Χ); # P_(i,j)
             end
 
             # 2) Absorb row i+n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
@@ -131,11 +148,11 @@ function do_ctmrg_iteration!(
 
         #= Down move for every unit-cell tensor. Sweeps from bottom to top, row by row =#
         for i ∈ 1:Ni
-            @debug "Down move, adding row $j"
+
             # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
             for j ∈ 0:Nj-1
                 loc = coord(ij + (-i, j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, DOWN); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, DOWN, Χ=Χ); # P_(i,j)
             end
 
             # 2) Absorb row i-n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
@@ -153,29 +170,476 @@ function do_ctmrg_iteration!(
 end
 
 
-function grow_T_tensor(T::Array{X,4}, Aket::Array{X,5}, Abra::Array{X,5}, dir::Direction) where {X<:Union{Float64, ComplexF64}}
+function renormalize_tensor(T::Array{X, 4}, A::Array{X, 5}, B::Array{X,5}, P::Vector{Array{ComplexF64, 4}}, dir::Direction) where {X<:Union{ComplexF64, Float64}}#P[1] -> P̃, P[2] -> P
     if dir == UP
-        @tensor Tket[re, rk, le, lk, dk, db, p] := T[re, le, α, db] * Aket[α, rk, dk, lk, p];
-        @tensor Tbraket[re, rk, rb, le, lk, lb, dk, db] := Tket[re, rk, le, lk, dk, α, β] * conj(Abra)[α, rb, db, lb, β];
-
+        @tensoropt T̃[re, le, dk, db] := T[α, β, γ, δ] * A[γ, ξ, dk, θ, p] * conj(B)[δ, κ, db, λ, p] * P[1][α, ξ, κ, re] * P[2][β, θ, λ, le];
     elseif dir == RIGHT
-        @tensor Tket[ue, uk, de, dk, lk, lb, p] := T[ue, de, α, lb] * Aket[uk, α, dk, lk, p];
-        @tensor Tbraket[ue, uk, ub, de, dk, db, lk, lb] := Tket[ue, uk, de, dk, lk, α, β] * conj(Abra)[ub, α, db, lb, β];
-
+        @tensoropt T̃[ue, de, lk, lb] := T[α, β, γ, δ] * A[θ, γ, ξ, lk, p] * conj(B)[λ, δ, κ, lb, p] * P[1][β, ξ, κ, de] * P[2][α, θ, λ, ue];
     elseif dir == DOWN
-        @tensor Tket[re, rk, le, lk, uk, ub, p] := T[re, le, α, ub] * Aket[uk, rk, α, lk, p];
-        @tensor Tbraket[re, rk, rb, le, lk, lb, uk, ub] := Tket[re, rk, le, lk, uk, α, β] * conj(Abra)[ub, rb, α, lb, β];
-
+        @tensoropt T̃[re, le, uk, ub] := T[α, β, γ, δ] * A[uk, ξ, γ, θ, p] * conj(B)[ub, κ, δ, λ, p] * P[1][α, ξ, κ, re] * P[2][β, θ, λ, le];
     elseif dir == LEFT
-        @tensor Tket[ue, uk, de, dk, rk, rb, p] := T[ue, de, α, rb] * Aket[uk, rk, dk, α, p];
-        @tensor Tbraket[ue, uk, ub, de, dk, db, rk, rb] := Tket[ue, uk, de, dk, rk, α, β] * conj(Abra)[ub, rb, db, α, β];
-
+        @tensoropt T̃[ue, de, rk, rb] := T[α, β, γ, δ] * A[θ, rk, ξ, γ, p] * conj(B)[λ, rb, κ, δ, p] * P[1][β, ξ, κ, de] * P[2][α, θ, λ, ue];
     end
 
-    return Tbraket
+    return T̃
+end
+
+"""
+    renormalize_tensor(C::Array{ComplexF64, 2}, T::Array{ComplexF64, 4}, P::Array{ComplexF64, 4}, dir::Direction)
+
+
+    UP:                         RIGHT:
+        ___ β    β ___           T₁ ____   α___
+    C₄ᵀ |            | C₁            ||       |  C₁ᵀ
+        α            α                        β
+
+        |__        __|
+    T₄  |__        __| T₂                     β
+        |            |           T₃ _||_  α___|  C₂ᵀ
+
+
+    DOWN:                       LEFT:
+        |__        __|              ___ α  ____ T₁
+    T₄  |__        __| T₂       C₄  |       ||
+        |            |              β
+
+        α            α              β
+    C₃  |__β      β__| C₂       C₃ᵀ |__ α  _||_ T₃
+
+
+"""
+function renormalize_tensor(C::AbstractArray{X, 2}, T::Array{X, 4}, P::Array{ComplexF64, 4}, dir::Direction) where {X<:Union{ComplexF64, Float64}}
+    if dir == UP
+        @tensoropt (α=>χ, β=>χ, de=>χ, T1=>χ) C̃[de, T1] := C[α, β] * T[α, de, γ, δ] * P[β, γ, δ, T1]
+    elseif dir == RIGHT
+        @tensoropt (α=>χ, β=>χ, le=>χ, T2=>χ) C̃[le, T2] := C[α, β] * T[α, le, γ, δ] * P[β, γ, δ, T2]
+    elseif dir == DOWN
+        @tensoropt (α=>χ, β=>χ, ue=>χ, T3=>χ) C̃[ue, T3] := C[α, β] * T[ue, α, γ, δ] * P[β, γ, δ, T3]
+    elseif dir == LEFT
+        @tensoropt (α=>χ, β=>χ, re=>χ, T4=>χ) C̃[re, T4] := C[α, β] * T[re, α, γ, δ] * P[β, γ, δ, T4]
+    end
+    return C̃
 end
 
 function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Direction, loc::CartesianIndex)
+    E_loc = unitcell(Environment, loc);
+    A = unitcell(Tensor, loc).A;
+    isdefined(unitcell, :B) == true ? (B = unitcell(BTensor, loc).A) : (B = A);
+
+    if direction == UP
+
+        """
+         C4(x,y-1)--      --T1(x,y-1)--     --C1(x,y-1)
+            |                   |                 |
+            |                   |                 |
+        T4(x,y)--          --R(x,y)--        --T2(x,y)
+            |                   |                 |
+
+        """
+
+        E_add = unitcell(Environment, loc + (-1, 0));
+
+        # Renormalize
+        P̃ = projectors(UP, loc)[1];
+        P = projectors(UP, loc + (0, -1))[2];
+
+        C̃4 = transpose(renormalize_tensor(transpose(E_add.C[4]), E_loc.T[4], P̃, UP));
+        C̃1 = renormalize_tensor(E_add.C[1], E_loc.T[2], P, UP);
+        T̃1 = renormalize_tensor(E_add.T[1], A, B, [P̃, P], UP);
+
+
+        # Update tensors environment
+        update_tensors!(unitcell, [C̃4, T̃1, C̃1], UP, loc);
+
+
+    elseif direction == RIGHT
+
+        """
+        -- T1(x,y)  --    C1(x+1,y)
+            |                 |
+
+            |                 |
+        -- R(x,y)   --    T2(x+1,y)
+            |                 |
+
+            |                 |
+        -- T3(x,y)  --   C2(x+1,y)
+
+        """
+
+        E_add = unitcell(Environment, loc + (0, 1));
+
+        # Renormalize
+        P̃ = projectors(RIGHT, loc)[1];
+        P = projectors(RIGHT, loc + (-1, 0))[2];
+
+        C̃1 = transpose(renormalize_tensor(transpose(E_add.C[1]), E_loc.T[1], P̃, RIGHT));
+        C̃2 = transpose(renormalize_tensor(transpose(E_add.C[2]), E_loc.T[3], P, RIGHT));
+        T̃2 = renormalize_tensor(E_add.T[2], A, B, [P̃, P], RIGHT);
+
+        # Update tensors environment
+        update_tensors!(unitcell, [C̃1, T̃2, C̃2], RIGHT, loc);
+
+
+    elseif direction == DOWN
+
+        """
+             |                 |                  |
+          T4(x,y)--       --R(x,y)--        --T2(x,y)
+             |                 |                  |
+             |                 |                  |
+          C3(x,y+1)--    --T3(x,y+1)--      --C2(x,y+1)
+
+        """
+
+        E_add = unitcell(Environment, loc + (1, 0));
+
+        # Renormalize
+        P̃ = projectors(DOWN, loc)[1];
+        P = projectors(DOWN, loc + (0, -1))[2];
+
+        C̃3 = renormalize_tensor(E_add.C[3], E_loc.T[4], P̃, DOWN);
+        C̃2 = renormalize_tensor(E_add.C[2], E_loc.T[2], P, DOWN);
+        T̃3 = renormalize_tensor(E_add.T[3], A, B, [P̃, P], DOWN);
+
+        # Update tensors environment
+        update_tensors!(unitcell, [C̃2, T̃3, C̃3], DOWN, loc);
+
+    elseif direction == LEFT
+
+        """
+        C4(x-1,y)  --  T1(x,y) --
+            |             |
+
+
+            |             |
+        T4(x-1,y)  --   R(x,y) --
+            |             |
+
+
+            |             |
+        C3(x-1,y)  --  T3(x,y) --
+        """
+
+        E_add = unitcell(Environment, loc + (0, -1));
+
+        # Renormalize
+        P̃ = projectors(LEFT, loc)[1];
+        P = projectors(LEFT, loc + (-1, 0))[2];
+
+        C̃4 = renormalize_tensor(E_add.C[4], E_loc.T[1], P̃, LEFT);
+        C̃3 = transpose(renormalize_tensor(transpose(E_add.C[3]), E_loc.T[3], P, LEFT));
+        T̃4 = renormalize_tensor(E_add.T[4], A, B, [P̃, P], LEFT);
+
+        # Update tensors environment
+        update_tensors!(unitcell, [C̃3, T̃4, C̃4], LEFT, loc);
+    end
+end
+
+
+#= """
+    projectors_half_system(Qa::Array{T, 6}, Qb::Array{T, 6}, Χ::Int64)
+
+    Index convention projectors
+                        /|-- environment (1)
+                     __/ |
+      environment(4)   \ |-- ket (2)
+                        \|-- bra (3)
+
+""" =#
+function projectors_half_system(Qa::Array{T, 6}, Qb::Array{T, 6}, Χ::Int64) where {T<:Union{Float64, ComplexF64}}
+    @tensor rho[lde, ldk, ldb, rde, rdk, rdb] := Qa[lde, ldk, ldb, α, β, γ] * Qb[α, β, γ, rde, rdk, rdb];
+
+    # Calculate projectors
+    U, S, Vt = tensor_svd(rho, [[1,2,3], [4,5,6]], Χ = Χ);
+    Sinvsqrt = diagm(S.^(-1/2));
+
+    @tensor P̃[le, lk, lb, re] := Qb[le, lk, lb, α, β, γ] * Vt[δ, α, β, γ] * Sinvsqrt[δ, re];
+    @tensor P[re, rk, rb, le] := Sinvsqrt[le, δ] * conj(U)[α, β, γ, δ] * Qa[α, β, γ, re, rk, rb];
+
+    # Spectra of half-system
+    S_f = zeros(Χ);
+    S_f[1:length(S)] = S/maximum(S);
+
+    return P̃, P, S_f
+end
+
+
+
+function calculate_projectors_ctmrg!(
+    uc::UnitCell,
+    projectors::Projectors,
+    loc::CartesianIndex,
+    direction::Direction;
+    Χ::Int64=0)
+
+    if direction == UP
+
+        """
+        C4(x-1,y-1) --  T1(x,y-1)--     -- T1(x+1,y-1) --  C1(x+2,y-1)
+            |                |                 |                |
+            |                |                 |                |
+        T4(x-1,y)   --    R(x,y) --     --  R(x+1,y)   --   T2(x+2,y)
+            |               |                 |                |
+
+        """
+
+        ##### Q4 #####
+        # Load tensors
+        C4 = uc(Environment, loc + (-1, -1)).C[4]; #!
+        T1 = uc(Environment, loc + (-1, 0)).T[1];
+        T4 = uc(Environment, loc + (0, -1)).T[4];
+        A = uc(Tensor, loc).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+
+
+        # Build enlarged corner
+        @tensor Q4[de, dk, db, re, rk, rb] := C4[α, β] * T1[re, α, γ, ξ] * T4[β, de, δ, θ] * A[γ, rk, dk, δ, p] * conj(B)[ξ, rb, db, θ, p];
+
+
+        ##### Q1 #####
+        # Load tensors
+        C1 = uc(Environment, loc + (-1, 2)).C[1];
+        T1 = uc(Environment, loc + (-1, 1)).T[1];
+        T2 = uc(Environment, loc + (0, 2)).T[2];
+        A = uc(Tensor, loc + (0, 1)).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (0, 1)).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q1[le, lk, lb, de, dk, db] := C1[α, β] * T1[β, le, δ, θ] * T2[α, de, γ, ξ]  * A[δ, γ, dk, lk, p] * conj(B)[θ, ξ, db, lb, p];
+
+
+        #return Q4, Q1
+
+        # Calculate projectors
+        Χ == 0 && (Χ = size(uc(Environment, loc).T[1], 1);)
+        P̃, P, S_f = projectors_half_system(Q4, Q1, Χ);
+        projectors.Pu[loc] = [P̃, P];
+
+        # Save spectra
+        uc.E[loc].spectra[1] = S_f;
+
+
+    elseif direction == RIGHT
+
+        """
+        -- T1(x,y-1) --  C1(x+1,y-1)
+              |             |
+              |             |
+        -- R(x,y)    -- T2(x+1,y)
+              |             |
+
+
+              |             |
+        -- R(x,y+1)  --  T2(x+1,y+1)
+              |             |
+              |             |
+        -- T3(x,y+2) --  C2(x+1,y+2)
+
+        """
+
+        ##### Q1 #####
+        # Load tensors
+        C1 = uc(Environment, loc + (-1, 1)).C[1];
+        T1 = uc(Environment, loc + (-1, 0)).T[1];
+        T2 = uc(Environment, loc + (0, 1)).T[2];
+        A = uc(Tensor, loc).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q1[le, lk, lb, de, dk, db] := C1[α, β] * T1[β, le, δ, θ] * T2[α, de, γ, ξ]  * A[δ, γ, dk, lk, p] * conj(B)[θ, ξ, db, lb, p];
+
+
+        ##### Q2 #####
+        # Load tensors
+        C2 = uc(Environment, loc + (2, 1)).C[2];
+        T3 = uc(Environment, loc + (2, 0)).T[3];
+        T2 = uc(Environment, loc + (1, 1)).T[2];
+        A = uc(Tensor, loc + (1, 0)).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (1, 0)).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q2[ue, uk, ub, le, lk, lb] := C2[α, β] * T2[ue, α, γ, ξ] * T3[β, le, δ, θ] * A[uk, γ, δ, lk, p] * conj(B)[ub, ξ, θ, lb, p];
+
+
+        #return Q1, Q2
+
+        ##### Calculate projectors #####
+        Χ == 0 && (Χ = size(uc(Environment, loc).T[2], 2);)
+        P̃, P, S_f = projectors_half_system(Q1, Q2, Χ);
+        projectors.Pr[loc] = [P̃, P];
+
+        # Save spectra
+        uc.E[loc].spectra[2] = S_f;
+
+    elseif direction == DOWN
+
+        """
+            |              |                    |               |
+        T4(x-1,y)   --  R(x,y)   --     --  R(x+1,y)   --    T2(x+2,y)
+            |              |                    |               |
+            |              |                    |               |
+        C3(x-1,y+1) -- T3(x,y+1) --     -- T3(x+1,y+1) --  C2(x+2,y+1)
+
+        """
+
+        ##### Q3 #####
+        # Load tensors
+        C3 = uc(Environment, loc + (1, -1)).C[3];
+        T3 = uc(Environment, loc + (1, 0)).T[3];
+        T4 = uc(Environment, loc + (0, -1)).T[4];
+        A = uc(Tensor, loc).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q3[ue, uk, ub, re, rk, rb] := C3[α, β] * T4[ue, α, γ, ξ] * T3[re, β, δ, θ] * A[uk, rk, δ, γ, p] * conj(B)[ub, rb, θ, ξ, p];
+
+
+        ##### Q2 #####
+        # Load tensors
+        C2 = uc(Environment, loc + (1, 2)).C[2];
+        T3 = uc(Environment, loc + (1, 1)).T[3];
+        T2 = uc(Environment, loc + (0, 2)).T[2];
+        A = uc(Tensor, loc + (0, 1)).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (0, 1)).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q2[le, lk, lb, ue, uk, ub] := C2[α, β] * T2[ue, α, γ, ξ] * T3[β, le, δ, θ] * A[uk, γ, δ, lk, p] * conj(B)[ub, ξ, θ, lb, p];
+
+        ##### Calculate projectors #####
+        Χ == 0 && (Χ = size(uc(Environment, loc).T[3], 1);)
+        P̃, P, S_f = projectors_half_system(Q3, Q2, Χ);
+        projectors.Pd[loc] = [P̃, P];
+
+        # Save spectra
+        uc.E[loc].spectra[3] = S_f;
+
+    elseif direction == LEFT
+
+        """
+        C4(x-1,y-1) -- T1(x,y-1) --
+            |              |
+            |              |
+        T4(x-1,y)   --  R(x,y) --
+            |              |
+
+
+            |              |
+        T4(x-1,y+1)  --  R(x,y+1) --
+            |              |
+            |              |
+        C3(x-1,y+2)  --  T3(x,y+2)--
+
+        """
+
+        ##### Q4 #####
+        # Load tensors
+        C4 = uc(Environment, loc + (-1, -1)).C[4];
+        T1 = uc(Environment, loc  + (-1, 0)).T[1];
+        T4 = uc(Environment, loc + (0, -1)).T[4];
+        A = uc(Tensor, loc).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q4[re, rk, rb, de, dk, db] := C4[α, β] * T1[re, α, γ, ξ] * T4[β, de, δ, θ] * A[γ, rk, dk, δ, p] * conj(B)[ξ, rb, db, θ, p];
+
+
+        ##### Q3 #####
+        # Load tensors
+        C3 = uc(Environment, loc + (2, -1)).C[3];
+        T3 = uc(Environment, loc + (2, 0)).T[3];
+        T4 = uc(Environment, loc + (1, -1)).T[4];
+        A = uc(Tensor, loc + (1, 0)).A;
+        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (1, 0)).A) : (B = A);
+
+        # Build enlarged corner
+        @tensor Q3[ue, uk, ub, re, rk, rb] := C3[α, β] * T4[ue, α, γ, ξ] * T3[re, β, δ, θ] * A[uk, rk, δ, γ, p] * conj(B)[ub, rb, θ, ξ, p];
+
+
+        ##### Calculate projectors #####
+        Χ == 0 && (Χ = size(uc(Environment, loc).T[4], 2);)
+        P̃, P, S_f = projectors_half_system(Q4, Q3, Χ);
+        projectors.Pl[loc] = [P̃, P];
+
+        # Save spectra
+        uc.E[loc].spectra[4] = S_f;
+
+    end
+
+end
+
+
+function update_tensors!(uc::UnitCell, tensors::Vector{T}, direction::Direction, loc::CartesianIndex; renormalize::Bool = true) where {T<:AbstractArray}
+
+
+    if direction == UP
+        pos = [4, 1, 1];
+    elseif direction == RIGHT
+        pos = [1, 2, 2];
+    elseif direction == DOWN
+        pos = [2, 3, 3];
+    elseif direction == LEFT
+        pos = [3, 4, 4];
+    end
+
+    if renormalize == true
+        uc.E[loc].C[pos[1]] = tensors[1]/opnorm(tensors[1]);
+        uc.E[loc].T[pos[2]] = tensors[2]/norm(tensors[2]);
+        uc.E[loc].C[pos[3]] = tensors[3]/opnorm(tensors[3]);
+
+    else
+        uc.E[loc].C[pos[1]] = collect(tensors[1]);
+        uc.E[loc].T[pos[2]] = collect(tensors[2]);
+        uc.E[loc].C[pos[3]] = collect(tensors[3]);
+    end
+
+end
+
+
+####################
+# Helper functions #
+####################
+
+function factorize_rho(rho::Array{T,2}, Χ::Int64) where {T<:Union{Float64, ComplexF64}}
+
+    U, S, V = svd(rho);
+    Χ > length(S) && (Χ = length(S);)
+    Winvsqrt = diagm(S[1:Χ].^(-1/2));
+
+    return U[:, 1:Χ], Winvsqrt, V[:, 1:Χ], S[1:Χ]/maximum(S[1:Χ])
+    #return U[:, 1:Χ], Winvsqrt, V[:, 1:Χ]
+end
+
+
+function calculate_error_ctm(Eref::Array{Environment{T},2}, Eupd::Array{Environment{T},2}) where {T}
+
+    ϵ = 0.0;
+    for xy ∈ CartesianIndices(size(Eref))
+        ϵ += sum([sum(abs.(Eupd[xy].spectra[n] - Eref[xy].spectra[n])) for n ∈ 1:4])
+    end
+
+    return ϵ
+end
+
+function cutoff(S::Vector{Float64}, χmax::Int, ϵ::Float64)
+    Χ = length(S);
+    sum_disc = 0.0;
+    n = 0;
+    if ϵ != 0.0
+        while sum_disc < ϵ && n < Χ
+            sum_disc += S[end - n]^2
+            n += 1;
+        end
+        n += -1; # to cancel the last step
+    end
+    Χkeep = Χ - n;
+    return min(Χkeep, χmax)
+end
+
+
+
+#=
+function do_ctm_move_old!(unitcell::UnitCell, projectors::Projectors, direction::Direction, loc::CartesianIndex)
     E_loc = unitcell(Environment, loc);
     A = unitcell(Tensor, loc).A;
     isdefined(unitcell, :B) == true ? (B = unitcell(BTensor, loc).A) : (B = conj(A));
@@ -336,10 +800,10 @@ function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Dir
         # Update tensors environment
         update_tensors!(unitcell, [C̃2, T̃3, C̃3], DOWN, loc);
     end
-end
+end =#
 
 
-function calculate_projectors_ctmrg!(
+#= function calculate_projectors_ctmrg_old!(
     uc::UnitCell,
     projectors::Projectors,
     loc::CartesianIndex,
@@ -350,22 +814,23 @@ function calculate_projectors_ctmrg!(
 
         # Calculate half-system density matrix
         Q4, Q1 = calculate_enlarged_corners(uc, loc, UP)
-        HU = Q4 * Q1;
+        @tensor HU[lde, ldk, ldb, rde, rdk, rdb] := Q4[α, β, γ, lde, ldk, ldb] * Q1[α, β, γ, rde, rdk, rdb];
 
         # Calculate projectors
         if Χ == 0
             Χ = size(uc(Environment, loc).T[1], 1);
         end
+        U, S, Vt = tensor_svd(HU, [[1,2,3], [4,5,6]], Χ = Χ);
+        Sinvsqrt = diagm(S.^(-1/2));
 
-        U, Sinvsqrt, V, S = factorize_rho(HU, Χ);
-        P̃ = Q1 * V * Sinvsqrt;
-        P = Sinvsqrt * U' * Q4;
+        @tensor P̃[re, le, lk, lb] := Q1[le, lk, lb, α, β, γ] * Vt[δ, α, β, γ] * Sinvsqrt[δ, re];
+        @tensor P[re, rk, rb, le] := Sinvsqrt[le, δ] * conj(U)[α, β, γ, δ] * Q4[α, β, γ, re, rk, rb];
 
         projectors.Pu[loc] = [P̃, P];
 
         # Save spectra of half-system
         S_f = zeros(Χ);
-        S_f[1:length(S)] = S;
+        S_f[1:length(S)] = S/maximum(S);
         uc.E[loc].spectra[1] = S_f;
 
 
@@ -383,6 +848,8 @@ function calculate_projectors_ctmrg!(
         U, Sinvsqrt, V, S = factorize_rho(HR, Χ)
         P̃ = Q2 * V * Sinvsqrt;
         P = Sinvsqrt * U' * Q1;
+
+
 
         projectors.Pr[loc] = [P̃, P];
 
@@ -436,276 +903,4 @@ function calculate_projectors_ctmrg!(
     end
 
 
-end
-
-function calculate_enlarged_corners(
-    uc::UnitCell,
-    loc::CartesianIndex,
-    direction::Direction)
-
-    if direction == LEFT
-
-        """
-        C4(x-1,y-1) -- T1(x,y-1) --
-            |              |
-            |              |
-        T4(x-1,y)   --  R(x,y) --
-            |              |
-
-
-            |              |
-        T4(x-1,y+1)  --  R(x,y+1) --
-            |              |
-            |              |
-        C3(x-1,y+2)  --  T3(x,y+2)--
-
-        """
-
-        ##### Q4 #####
-        # Load tensors
-        C4 = uc(Environment, loc + (-1, -1)).C[4];
-        T1 = uc(Environment, loc  + (-1, 0)).T[1];
-        T4 = uc(Environment, loc + (0, -1)).T[4];
-        A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = conj(A));
-
-        # Build enlarged corner
-        ABT4 = grow_T_tensor(T4, A, B, LEFT);
-        @tensor ABT4C4[re, uk, ub, de, dk, db, rk, rb] := C4[re, α] * ABT4[α, uk, ub, de, dk, db, rk, rb];
-        @tensor Q4[re, rk, rb, de, dk, db] := ABT4C4[α, β, γ, de, dk, db, rk, rb] * T1[re, α, β, γ];
-        Q4 = reshape(Q4, (prod(size(Q4)[1:3]), :));
-
-
-        ##### Q3 #####
-        # Load tensors
-        C3 = uc(Environment, loc + (2, -1)).C[3];
-        T3 = uc(Environment, loc + (2, 0)).T[3];
-        T4 = uc(Environment, loc + (1, -1)).T[4];
-        A = uc(Tensor, loc + (1, 0)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (1, 0)).A) : (B = conj(A));
-
-
-        # Build enlarged corner
-        ABT4 = grow_T_tensor(T4, A, B, LEFT);
-        @tensor ABT4C3[re, ue, uk, ub, dk, db, rk, rb] := C3[α, re] * ABT4[ue, uk, ub, α, dk, db, rk, rb];
-        @tensor Q3[ue, uk, ub, re, rk, rb] := T3[re, α, β, γ] * ABT4C3[α, ue, uk, ub, β, γ, rk, rb];
-        Q3 = reshape(Q3, (prod(size(Q3)[1:3]), :));
-
-        return Q4, Q3
-
-    elseif direction == RIGHT
-
-        """
-        -- T1(x,y-1) --  C1(x+1,y-1)
-              |             |
-              |             |
-        -- R(x,y)    -- T2(x+1,y)
-              |             |
-
-
-              |             |
-        -- R(x,y+1)  --  T2(x+1,y+1)
-              |             |
-              |             |
-        -- T3(x,y+2) --  C2(x+1,y+2)
-
-        """
-
-        ##### Q1 #####
-        # Load tensors
-        C1 = uc(Environment, loc + (-1, 1)).C[1];
-        T1 = uc(Environment, loc + (-1, 0)).T[1];
-        T2 = uc(Environment, loc + (0, 1)).T[2];
-        A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = conj(A));
-
-        # Build enlarged corner
-        ABT2 = grow_T_tensor(T2, A, B, RIGHT);
-        @tensor ABT2C1[le, uk, ub, de, dk, db, lk, lb] := C1[α, le] * ABT2[α, uk, ub, de, dk, db, lk, lb];
-        @tensor Q1[le, lk, lb, de, dk, db] := T1[α, le, β, γ] * ABT2C1[α, β, γ, de, dk, db, lk, lb];
-        Q1 = reshape(Q1, (prod(size(Q1)[1:3]), :));
-
-        ##### Q2 #####
-        # Load tensors
-        C2 = uc(Environment, loc + (2, 1)).C[2];
-        T3 = uc(Environment, loc + (2, 0)).T[3];
-        T2 = uc(Environment, loc + (1, 1)).T[2];
-        A = uc(Tensor, loc + (1, 0)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (1, 0)).A) : (B = conj(A));
-
-        # Build enlarged corner
-        ABT2 = grow_T_tensor(T2, A, B, RIGHT);
-        @tensor ABT2C2[le, ue, uk, ub, dk, db, lk, lb] := C2[α, le] * ABT2[ue, uk, ub, α, dk, db, lk, lb];
-        @tensor Q2[ue, uk, ub, le, lk, lb] := T3[α, le, β, γ] * ABT2C2[α, ue, uk, ub, β, γ, lk, lb];
-        Q2 = reshape(Q2, (prod(size(Q2)[1:3]), :));
-
-        return Q1, Q2
-
-    elseif direction == UP
-
-        """
-         C4(x-1,y-1) --  T1(x,y-1)--     -- T1(x+1,y-1) --  C1(x+2,y-1)
-            |                |                 |                |
-            |                |                 |                |
-         T4(x-1,y)   --    R(x,y) --     --  R(x+1,y)   --   T2(x+2,y)
-             |               |                 |                |
-
-        """
-
-        ##### Q4 #####
-        # Load tensors
-        C4 = uc(Environment, loc + (-1, -1)).C[4]; #!
-        T1 = uc(Environment, loc + (-1, 0)).T[1];
-        T4 = uc(Environment, loc + (0, -1)).T[4];
-        A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = conj(A));
-
-
-        # Build enlarged corner #! copied from left move
-        ABT4 = grow_T_tensor(T4, A, B, LEFT);
-        @tensor ABT4C4[re, uk, ub, de, dk, db, rk, rb] := C4[re, α] * ABT4[α, uk, ub, de, dk, db, rk, rb];
-        @tensor Q4[de, dk, db, re, rk, rb] := ABT4C4[α, β, γ, de, dk, db, rk, rb] * T1[re, α, β, γ];
-        Q4 = reshape(Q4, (prod(size(Q4)[1:3]), :));
-
-
-        ##### Q1 #####
-        # Load tensors
-        C1 = uc(Environment, loc + (-1, 2)).C[1];
-        T1 = uc(Environment, loc + (-1, 1)).T[1];
-        T2 = uc(Environment, loc + (0, 2)).T[2];
-        A = uc(Tensor, loc + (0, 1)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (0, 1)).A) : (B = conj(A));
-
-        # Build enlarged corner #! copied from right move
-        ABT2 = grow_T_tensor(T2, A, B, RIGHT);
-        @tensor ABT2C1[le, uk, ub, de, dk, db, lk, lb] := C1[α, le] * ABT2[α, uk, ub, de, dk, db, lk, lb];
-        @tensor Q1[le, lk, lb, de, dk, db] := T1[α, le, β, γ] * ABT2C1[α, β, γ, de, dk, db, lk, lb];
-        Q1 = reshape(Q1, (prod(size(Q1)[1:3]), :));
-
-        return Q4, Q1
-
-    elseif direction == DOWN
-
-        """
-            |              |                    |               |
-        T4(x-1,y)   --  R(x,y)   --     --  R(x+1,y)   --    T2(x+2,y)
-            |              |                    |               |
-            |              |                    |               |
-        C3(x-1,y+1) -- T3(x,y+1) --     -- T3(x+1,y+1) --  C2(x+2,y+1)
-
-        """
-
-        ##### Q3 #####
-        # Load tensors
-        C3 = uc(Environment, loc + (1, -1)).C[3];
-        T3 = uc(Environment, loc + (1, 0)).T[3];
-        T4 = uc(Environment, loc + (0, -1)).T[4];
-        A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = conj(A));
-
-        # Build enlarged corner #! Copied from left move
-        ABT4 = grow_T_tensor(T4, A, B, LEFT);
-        @tensor ABT4C3[re, ue, uk, ub, dk, db, rk, rb] := C3[α, re] * ABT4[ue, uk, ub, α, dk, db, rk, rb];
-        @tensor Q3[ue, uk, ub, re, rk, rb] := T3[re, α, β, γ] * ABT4C3[α, ue, uk, ub, β, γ, rk, rb];
-        Q3 = reshape(Q3, (prod(size(Q3)[1:3]), :));
-
-        ##### Q2 #####
-        # Load tensors
-        C2 = uc(Environment, loc + (1, 2)).C[2];
-        T3 = uc(Environment, loc + (1, 1)).T[3];
-        T2 = uc(Environment, loc + (0, 2)).T[2];
-        A = uc(Tensor, loc + (0, 1)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (0, 1)).A) : (B = conj(A));
-
-        # Build enlarged corner #! Copied from right move
-        ABT2 = grow_T_tensor(T2, A, B, RIGHT);
-        @tensor ABT2C2[le, ue, uk, ub, dk, db, lk, lb] := C2[α, le] * ABT2[ue, uk, ub, α, dk, db, lk, lb];
-        @tensor Q2[le, lk, lb, ue, uk, ub] := T3[α, le, β, γ] * ABT2C2[α, ue, uk, ub, β, γ, lk, lb];
-        Q2 = reshape(Q2, (prod(size(Q2)[1:3]), :));
-
-        return Q3, Q2
-
-    end
-
-end
-
-
-function update_tensors!(uc::UnitCell, tensors::Vector{T}, direction::Direction, loc::CartesianIndex; renormalize::Bool = true) where {T<:AbstractArray}
-
-
-    if direction == UP
-        pos = [4, 1, 1];
-    elseif direction == RIGHT
-        pos = [1, 2, 2];
-    elseif direction == DOWN
-        pos = [2, 3, 3];
-    elseif direction == LEFT
-        pos = [3, 4, 4];
-    end
-
-    if renormalize == true
-        uc.E[loc].C[pos[1]] = tensors[1]/opnorm(tensors[1]);
-        uc.E[loc].T[pos[2]] = tensors[2]/norm(tensors[2]);
-        uc.E[loc].C[pos[3]] = tensors[3]/opnorm(tensors[3]);
-
-    else
-        uc.E[loc].C[pos[1]] = collect(tensors[1]);
-        uc.E[loc].T[pos[2]] = collect(tensors[2]);
-        uc.E[loc].C[pos[3]] = collect(tensors[3]);
-    end
-
-end
-
-
-####################
-# Helper functions #
-####################
-
-function factorize_rho_sym(rho::Array{T,2}, Χ::Int, symmetry::LatticeSymmetry) where {T}
-    if symmetry == XY || symmetry == C4
-        #@info "Is hermitian $(rho ≈ rho')"
-        Λ, U = eigen(rho, sortby= x -> -1 * real(x))
-        Winvsqrt = diagm(Λ[1:Χ].^(-1/2));
-        return U[:, 1:Χ], Winvsqrt, U[:, 1:Χ]
-    else
-        U, S, V = svd(rho);
-        Winvsqrt = diagm(S[1:Χ].^(-1/2));
-        return U[:, 1:Χ], Winvsqrt, V[:, 1:Χ]
-    end
-end
-
-function factorize_rho(rho::Array{T,2}, Χ::Int64) where {T<:Union{Float64, ComplexF64}}
-
-    U, S, V = svd(rho);
-    Χ > length(S) && (Χ = length(S);)
-    Winvsqrt = diagm(S[1:Χ].^(-1/2));
-
-    return U[:, 1:Χ], Winvsqrt, V[:, 1:Χ], S[1:Χ]/maximum(S[1:Χ])
-    #return U[:, 1:Χ], Winvsqrt, V[:, 1:Χ]
-end
-
-
-function calculate_error_ctm(Eref::Array{Environment{T},2}, Eupd::Array{Environment{T},2}) where {T}
-
-    ϵ = 0.0;
-    for xy ∈ CartesianIndices(size(Eref))
-        ϵ += sum([sum(abs.(Eupd[xy].spectra[n] - Eref[xy].spectra[n])) for n ∈ 1:4])
-    end
-
-    return ϵ
-end
-
-function cutoff(S::Vector{Float64}, χmax::Int, ϵ::Float64)
-    Χ = length(S);
-    sum_disc = 0.0;
-    n = 0;
-    if ϵ != 0.0
-        while sum_disc < ϵ && n < Χ
-            sum_disc += S[end - n]^2
-            n += 1;
-        end
-        n += -1; # to cancel the last step
-    end
-    Χkeep = Χ - n;
-    return min(Χkeep, χmax)
-end
+end =#

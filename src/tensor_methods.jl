@@ -105,10 +105,18 @@ function symmetrize(S::Array{T,5}; renormalize::Bool = true, hermitian::Bool = t
     renormalize == false && return S
 end
 
-function tensor_svd(A::Array{T}, indices_partition::Vector{Vector{Int64}}) where {T<:Union{ComplexF64, Float64}}
+function tensor_svd(A::Array{T}, indices_partition::Vector{Vector{Int64}}; Χ::Int64=0) where {T<:Union{ComplexF64, Float64}}
     rA = reshape(A, (prod(size(A)[indices_partition[1]]), prod(size(A)[indices_partition[2]])));
+
     fA = svd(rA);
-    u = reshape(fA.U, (size(A)[indices_partition[1]]..., size(fA.U, 2)));
-    v = reshape(fA.Vt, (size(fA.Vt, 1), size(A)[indices_partition[2]]...));
-    return u, fA.S, v
+    (Χ > length(fA.S) || Χ == 0) && (Χ = length(fA.S);)
+
+    U = fA.U[:, 1:Χ];
+    S = fA.S[1:Χ];
+    Vt = fA.Vt[1:Χ, :];
+
+    U = reshape(U, (size(A)[indices_partition[1]]..., size(U, 2)));
+    Vt = reshape(Vt, (size(Vt, 1), size(A)[indices_partition[2]]...));
+
+    return U, S, Vt
 end

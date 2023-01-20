@@ -230,7 +230,6 @@ mutable struct UnitCell{T<:Union{Float64, ComplexF64}}
 
 end
 
-@info "Consolidate constructors of ``UnitCell``"
 
 function UnitCell{T}(D::Int64, dims::Tuple, pattern::Array{Char, 2}, symmetry::LatticeSymmetry = XY) where {T<:Union{Float64, ComplexF64}}
 

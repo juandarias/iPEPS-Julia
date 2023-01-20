@@ -39,20 +39,20 @@ mutable struct Projectors{T<:Renormalization}
 # |                    |
 
     dims::Tuple
-    Pu::Array{Vector{Array{ComplexF64, 2}}} # [Left subspace, Right subspace]
-    Pr::Array{Vector{Array{ComplexF64, 2}}} # [Upper subspace, Lower subspace]
-    Pd::Array{Vector{Array{ComplexF64, 2}}} # [Left subspace, Right subspace]
-    Pl::Array{Vector{Array{ComplexF64, 2}}} # [Upper subspace, Lower subspace]
+    Pu::Array{Vector{Array{ComplexF64, 4}}} # [Left subspace, Right subspace]
+    Pr::Array{Vector{Array{ComplexF64, 4}}} # [Upper subspace, Lower subspace]
+    Pd::Array{Vector{Array{ComplexF64, 4}}} # [Left subspace, Right subspace]
+    Pl::Array{Vector{Array{ComplexF64, 4}}} # [Upper subspace, Lower subspace]
 
     Projectors{T}() where {T<:Renormalization} = new{T}()
 
     function Projectors{T}(unitcell::UnitCell) where {T<:Renormalization}
 
         dims = unitcell.dims;
-        Pu = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
-        Pr = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
-        Pd = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
-        Pl = Array{Vector{Array{ComplexF64, 2}}}(undef, dims);
+        Pu = Array{Vector{Array{ComplexF64, 4}}}(undef, dims);
+        Pr = Array{Vector{Array{ComplexF64, 4}}}(undef, dims);
+        Pd = Array{Vector{Array{ComplexF64, 4}}}(undef, dims);
+        Pl = Array{Vector{Array{ComplexF64, 4}}}(undef, dims);
 
         new{T}(dims, Pu, Pr, Pd, Pl)
     end

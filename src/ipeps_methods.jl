@@ -38,12 +38,12 @@ function braket_unitcell(bra::UnitCell{X}, ket::UnitCell{X}) where {X}
 
     #* Recreate reduced tensors
     R_cell = Array{ReducedTensor{X}, 2}(undef,  ket.dims);
-    for xy ∈ CartesianIndices(ket.dims)
-        A = ket(Tensor, xy).A;
-        B = bra(Tensor, xy).A;
+    for ij ∈ CartesianIndices(ket.dims)
+        A = ket(Tensor, ij).A;
+        B = bra(Tensor, ij).A;
 
         @tensor R[uk, ub, rk, rb, dk, db, lk, lb] := A[uk, rk, dk, lk, α] * conj(B)[ub, rb, db, lb, α]
-        R_cell[xy] = ReducedTensor(reshape(R, (size(A) .* size(B))[1:4]), ket.symmetry);
+        R_cell[ij] = ReducedTensor(reshape(R, (size(A) .* size(B))[1:4]), ket.symmetry);
     end
 
     #* Reconstruct environment
@@ -77,9 +77,9 @@ function reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
         cell_environment = Array{Environment{X}, 2}(undef, ket.dims);
 
         #* Create environment tensors
-        for xy ∈ CartesianIndices(ket.dims)
-            Cs, Ts = generate_environment_tensors(ket, bra, isos_ket, isos_bra, xy);
-            cell_environment[xy] = Environment(Cs, Ts, xy);
+        for ij ∈ CartesianIndices(ket.dims)
+            Cs, Ts = generate_environment_tensors(ket, bra, isos_ket, isos_bra, ij);
+            cell_environment[ij] = Environment(Cs, Ts, ij);
         end
 
     else
@@ -93,12 +93,12 @@ end
 
 function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::UnitCell)
 
-    for xy ∈ CartesianIndices(state.dims)
-        shifts = [(0, -1), (1, 0), (0, 1), (-1, 0)]; # up, right, down, left
+    for ij ∈ CartesianIndices(state.dims)
+        shifts = [(-1, 0), (0, 1), (1, 0), (0, -1)]; # up, right, down, left
 
         for dir ∈ [UP, RIGHT, DOWN, LEFT]
-            nxy = coord(xy + CartesianIndex(shifts[Int(dir)]), state.dims);
-            nA = state(Tensor, nxy).A;
+            nij = coord(ij + shifts[Int(dir)], state.dims);
+            nA = state(Tensor, nij).A;
 
             # Factorize
             if dir == UP
@@ -118,13 +118,13 @@ function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::Un
 
             # Save isometries
             if dir == UP
-                isos.Pu[xy] = [IA, Id];
+                isos.Pu[ij] = [IA, Id];
             elseif dir == RIGHT
-                isos.Pr[xy] = [IA, Id];
+                isos.Pr[ij] = [IA, Id];
             elseif dir == DOWN
-                isos.Pd[xy] = [IA, Id];
+                isos.Pd[ij] = [IA, Id];
             elseif dir == LEFT
-                isos.Pl[xy] = [IA, Id];
+                isos.Pl[ij] = [IA, Id];
             end
 
         end
