@@ -107,11 +107,55 @@ end
 
 function tensor_svd(A::Array{T}, indices_partition::Vector{Vector{Int64}}; Χ::Int64=0, full_svd::Bool = false) where {T<:Union{ComplexF64, Float64}}
     rA = reshape(A, (prod(size(A)[indices_partition[1]]), prod(size(A)[indices_partition[2]])));
+    global rm
+    rm = deepcopy(rA)
 
     if full_svd == true
         fA = svd(rA);
     else
-        fA, _ = svdl(rA, nsv = Χ, vecs = :both);
+        if isreal(rA) == true
+            fA, _ = svdl(real(rA), nsv = Χ, vecs = :both);
+        else
+            #fA, _ = svds(rA, nsv = Χ); # uses Arpack svds for imag. matrices due to a bug of svdl, although svds is slower.
+            Sk, Uk, Vk, info = svdsolve(ipeps_ctm.rm, Χ); # uses KrylovKit as svds doesn't converge always all the singular values
+            if info.converged > Χ
+                U = hcat(Uk...);
+                Vt = vcat(transpose(Vk)...);
+                fA = SVD(U, Sk, Vt);
+            else
+                fA = svd(rA);
+            end
+        end;
+
+    end
+
+    (Χ > length(fA.S) || Χ == 0) && (Χ = length(fA.S);)
+
+    U = fA.U[:, 1:Χ];
+    S = fA.S[1:Χ];
+    Vt = fA.Vt[1:Χ, :];
+
+    U = reshape(U, (size(A)[indices_partition[1]]..., size(U, 2)));
+    Vt = reshape(Vt, (size(Vt, 1), size(A)[indices_partition[2]]...));
+
+    return U, S, Vt
+end
+
+function tensor_svdl(A::Array{T}, indices_partition::Vector{Vector{Int64}}; Χ::Int64=0, full_svd::Bool = false) where {T<:Union{ComplexF64, Float64}}
+    rA = reshape(A, (prod(size(A)[indices_partition[1]]), prod(size(A)[indices_partition[2]])));
+
+    @info "Is it real?", isreal(rA) == true
+
+    if full_svd == true
+        fA = svd(rA);
+    else
+        if isreal(rA) == true
+            @info "Using real fact"
+            fA, _ = svdl(real(rA), nsv = Χ, vecs = :both);
+        else
+            fA, _ = svdl(rA, nsv = Χ, vecs = :both);
+        end;
+
     end
 
     (Χ > length(fA.S) || Χ == 0) && (Χ = length(fA.S);)

@@ -89,7 +89,6 @@ s =1
     @info "Reconverging environment for time $t"
 
     projectors = Projectors{EachMove}(ΨΦ);
-    ctm.Χ = 16;
     error_CTM = update_environment!(ΨΦ, projectors, ctm)
 
 

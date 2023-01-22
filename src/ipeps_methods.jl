@@ -102,13 +102,13 @@ function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::Un
 
             # Factorize
             if dir == UP
-                U, S, _ = tensor_svd(nA,[[3], [1,2,4,5]]);
+                U, S, _ = tensor_svd(nA,[[3], [1,2,4,5]], full_svd = true);
             elseif dir == RIGHT
-                U, S, _ = tensor_svd(nA,[[4], [1,2,3,5]]);
+                U, S, _ = tensor_svd(nA,[[4], [1,2,3,5]], full_svd = true);
             elseif dir == DOWN
-                U, S, _ = tensor_svd(nA,[[1], [2,3,4,5]]);
+                U, S, _ = tensor_svd(nA,[[1], [2,3,4,5]], full_svd = true);
             elseif dir == LEFT
-                U, S, _ = tensor_svd(nA,[[2], [1,3,4,5]]);
+                U, S, _ = tensor_svd(nA,[[2], [1,3,4,5]], full_svd = true);
             end
 
             sqrtS = diagm(sqrt.(S[1:2]));

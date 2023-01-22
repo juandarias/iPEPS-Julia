@@ -5,9 +5,10 @@ module ipeps_ctm
     # Modules #
     ###########
 
-    import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!
+    import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!, SVD
     import Base: +
     import IterativeSolvers: svdl
+    import KrylovKit: svdsolve
     #import Combinatorics: permutations
     using TensorOperations
     #using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
