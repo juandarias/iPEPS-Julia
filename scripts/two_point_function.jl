@@ -55,7 +55,6 @@ ctm.tol_ctm = tol_ctm;
 # Calculation of observables #
 ##############################
 
-
 ##### Load ground state #####
 gs_file = projectdir("input/Ising/$(SC)x$(SC)/Psi0_VU_15x15_B2.5_D3_X40.h5")
 Psi0_As, Psi0_Rs = load_ctm_matlab(gs_file, dims; load_environment = false);
@@ -65,7 +64,7 @@ psit_file_root = "$(SC)x$(SC)_B$(h)_D0$(D0)_Dt$(Dt)_X$(Chi)_t";
 rho_xy = Array{Array{ComplexF64,2},2}(undef, dims);
 
 #for s ∈ step_start:step_end
-s =75
+s =1
     t = s * dt;
 
     # Location of results
@@ -90,8 +89,10 @@ s =75
     @info "Reconverging environment for time $t"
 
     projectors = Projectors{EachMove}(ΨΦ);
-    ctm.Χ = 0;
+    ctm.Χ = 16;
     error_CTM = update_environment!(ΨΦ, projectors, ctm)
+
+
     get_param!(args_dict, "ctm_error", error_CTM);
 
 
