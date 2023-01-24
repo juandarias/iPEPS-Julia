@@ -37,18 +37,25 @@ const h = get_param!(args_dict, "h", 2.5);
 
 
 const tol_ctm = get_param!(args_dict, "tol_ctm", 1e-8);
-const ctm_steps = get_param!(args_dict, "ctm_steps", 20);
+const ctm_steps = get_param!(args_dict, "ctm_steps", 10);
 
 
 ##################
 # CTM parameters #
 ##################
+const SC = 5
 dims = (SC, SC);
 
 ctm = GENERIC_CTM()
 ctm.Χ = Chi;
-ctm.max_ctm_steps = ctm_steps;
+ctm.max_ctm_steps = 2;
 ctm.tol_ctm = tol_ctm;
+ctm.tol_energy = 1e-3
+
+Sz_op = Operator(0.5*[1.0 0 ; 0 -1], [(3,3)]);
+Sz_op.name = "⟨Z⟩";
+ctm.observables = [Sz_op];
+ctm.ctm_convergence = true
 
 
 ##############################
@@ -56,12 +63,18 @@ ctm.tol_ctm = tol_ctm;
 ##############################
 
 ##### Load ground state #####
-gs_file = projectdir("input/Ising/$(SC)x$(SC)/Psi0_VU_15x15_B2.5_D3_X40.h5")
+gs_file = projectdir("input/Ising/$(SC)x$(SC)/Psi0_VU_$(SC)x$(SC)_B2.5_D3_X40.h5")
+gs_file = projectdir("input/Ising/$(SC)x$(SC)/Psi0_VU_$(SC)x$(SC)_B2.5_D4_X50.h5")
 Psi0_As, Psi0_Rs = load_ctm_matlab(gs_file, dims; load_environment = false);
+Psi0_As, Psi0_Rs, Psi0_E = load_ctm_matlab(gs_file, dims; load_environment = true);
 Ψ0 = UnitCell(deepcopy(Psi0_Rs), deepcopy(Psi0_As));
 
 psit_file_root = "$(SC)x$(SC)_B$(h)_D0$(D0)_Dt$(Dt)_X$(Chi)_t";
 rho_xy = Array{Array{ComplexF64,2},2}(undef, dims);
+
+projectors = Projectors{EachMove}(Ψ0);
+initialize_environment!(Ψ0); # or
+error_CTM = update_environment!(Ψ0, projectors, ctm)
 
 #for s ∈ step_start:step_end
 s =1
@@ -74,6 +87,7 @@ s =1
     create_group(f, "S+S+");
     create_group(f, "S+S-");
     create_group(f, "N");
+    create_group(f, "CTM");
 
 
     # Load time-evolved state
@@ -81,16 +95,19 @@ s =1
     As, Rs = load_ctm_matlab(filepath, dims; load_environment = false);
     Ψt = UnitCell(deepcopy(Rs), deepcopy(As));
 
-
     # Creates new unitcell with new environment and two layers of tensors
     ΨΦ = braket_unitcell(Ψt, Ψ0);
+    reinitialize_environment!(ΨΦ);
+
+
 
     # Reconverge environment
     @info "Reconverging environment for time $t"
 
     projectors = Projectors{EachMove}(ΨΦ);
+    ctm.Χ = 20;
     error_CTM = update_environment!(ΨΦ, projectors, ctm)
-
+    f["CTM/error"] = error_CTM;
 
     get_param!(args_dict, "ctm_error", error_CTM);
 

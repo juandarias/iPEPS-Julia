@@ -34,6 +34,40 @@ function initialize_environment!(uc::UnitCell{X}) where {X<:Union{Float64, Compl
 end
 
 
+function braket_unitcell_old(bra::UnitCell{X}, ket::UnitCell{X}) where {X}
+
+    #* Create new state
+    braket = UnitCell{X}();
+    braket.D = ket.D;
+    braket.dims = ket.dims;
+    braket.pattern = ket.pattern;
+    braket.A = deepcopy(ket.A);
+    braket.B = deepcopy(bra.A);
+
+    #* Reconstruct environment
+    if ket.D != bra.D
+        E = reinitialize_environment(ket, bra);
+        braket.E = deepcopy(E);
+    else
+        initialize_environment!(braket);
+    end
+
+    #* Recreate reduced tensors
+    R_cell = Array{ReducedTensor{X}, 2}(undef,  ket.dims);
+    for ij ∈ CartesianIndices(ket.dims)
+        A = ket(Tensor, ij).A;
+        B = bra(Tensor, ij).A;
+
+        @tensor R[uk, ub, rk, rb, dk, db, lk, lb] := A[uk, rk, dk, lk, α] * conj(B)[ub, rb, db, lb, α]
+        R_cell[ij] = ReducedTensor(reshape(R, (size(A) .* size(B))[1:4]), ket.symmetry);
+    end
+    braket.R = deepcopy(R_cell);
+
+    return braket
+
+end
+
+
 function braket_unitcell(bra::UnitCell{X}, ket::UnitCell{X}) where {X}
 
     #* Recreate reduced tensors
@@ -45,49 +79,38 @@ function braket_unitcell(bra::UnitCell{X}, ket::UnitCell{X}) where {X}
         @tensor R[uk, ub, rk, rb, dk, db, lk, lb] := A[uk, rk, dk, lk, α] * conj(B)[ub, rb, db, lb, α]
         R_cell[ij] = ReducedTensor(reshape(R, (size(A) .* size(B))[1:4]), ket.symmetry);
     end
-
-    #* Reconstruct environment
-    E = reinitialize_environment(ket, bra);
-
-    #* Create new state
-    braket = UnitCell(deepcopy(R_cell));
+    braket = UnitCell(R_cell);
     braket.A = deepcopy(ket.A);
     braket.B = deepcopy(bra.A);
-    braket.E = deepcopy(E);
+    braket.D = ket.D;
+
+    #* Reconstruct environment
+    if ket.D != bra.D
+        reinitialize_environment!(braket);
+    else
+        initialize_environment!(braket);
+    end
 
     return braket
 
 end
-
 
 """
     reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
 
 Creates a new environment from two different states as required when calculating overlaps.
 """
-function reinitialize_environment(ket::UnitCell{X}, bra::UnitCell{X}) where {X}
-    if ket.D != bra.D
-        #* Create projectors to D=1 for all unit-cell tensors and directions
-        isos_ket = Projectors{BraKetOverlap}(ket);
-        generate_isometries_overlap!(isos_ket, ket);
+function reinitialize_environment!(braket::UnitCell{X}) where {X}
 
-        isos_bra = Projectors{BraKetOverlap}(bra);
-        generate_isometries_overlap!(isos_bra, bra);
+    cell_environment = Array{Environment{X}, 2}(undef, braket.dims);
 
-        cell_environment = Array{Environment{X}, 2}(undef, ket.dims);
-
-        #* Create environment tensors
-        for ij ∈ CartesianIndices(ket.dims)
-            Cs, Ts = generate_environment_tensors(ket, bra, isos_ket, isos_bra, ij);
-            cell_environment[ij] = Environment(Cs, Ts, ij);
-        end
-
-    else
-        @assert "If the bond dimensions of ket an bra layer are the same, reuse the
-        environment of one of them and reconverge"
+    #* Create environment tensors
+    for ij ∈ CartesianIndices(braket.dims)
+        Cs, Ts = generate_environment_tensors(braket, ij);
+        cell_environment[ij] = Environment(Cs, Ts, ij);
     end
 
-    return cell_environment
+    braket.E = cell_environment;
 end
 
 
@@ -98,23 +121,27 @@ function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::Un
 
         for dir ∈ [UP, RIGHT, DOWN, LEFT]
             nij = coord(ij + shifts[Int(dir)], state.dims);
-            nA = state(Tensor, nij).A;
+            nR = state(ReducedTensor, nij).R;
 
             # Factorize
             if dir == UP
-                U, S, _ = tensor_svd(nA,[[3], [1,2,4,5]], full_svd = true);
+                nR = permutedims(nR, (3, 1, 2, 4));
+                U, S, _ = tensor_svd(nR,[[1], [2, 3, 4]], full_svd = true);
             elseif dir == RIGHT
-                U, S, _ = tensor_svd(nA,[[4], [1,2,3,5]], full_svd = true);
+                nR = permutedims(nR, (4, 1, 2, 3));
+                U, S, _ = tensor_svd(nR,[[1], [2, 3, 4]], full_svd = true);
             elseif dir == DOWN
-                U, S, _ = tensor_svd(nA,[[1], [2,3,4,5]], full_svd = true);
+                U, S, _ = tensor_svd(nR,[[1], [2, 3, 4]], full_svd = true);
             elseif dir == LEFT
-                U, S, _ = tensor_svd(nA,[[2], [1,3,4,5]], full_svd = true);
+                nR = permutedims(nR, (2, 1, 3, 4));
+                U, S, _ = tensor_svd(nR,[[1], [2, 3, 4]], full_svd = true);
             end
 
-            sqrtS = diagm(sqrt.(S[1:2]));
-            IA = U[:, 1:2] * sqrtS; #legs: 1:in, 2:out
+            sqrtS = sqrt(S[1]);
+            IA = U[:, 1] * sqrtS; #legs: 1:in, 2:out
+            IA = reshape(IA, (state.D, :)); #legs: (1)ket, (2)bra
 
-            Id = diagm(ones(size(S)));
+            Id = diagm(ones(size(IA, 1)));
 
             # Save isometries
             if dir == UP
@@ -132,76 +159,29 @@ function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::Un
 
 end
 
+
 """
-    generate_environment_tensors(ket::UnitCell, bra::UnitCell, iso_ket::Projectors, iso_bra::Projectors, loc::CartesianIndex)
+    generate_environment_tensors_proj(braket::UnitCell, isos::Projectors, loc::CartesianIndex)
 
 Creates the environments tensors at a unit-cell site for the case where the ket and the bra states are different
 """
-function generate_environment_tensors(ket::UnitCell, bra::UnitCell, iso_ket::Projectors, iso_bra::Projectors, loc::CartesianIndex)
-    A = ket(Tensor, loc).A;
-    B = conj(bra(Tensor, loc).A);
-    D_A = size(A);
-    D_B = size(B);
+function generate_environment_tensors_proj(braket::UnitCell, isos::Projectors, loc::CartesianIndex)
+    Aij = braket(Tensor, loc).A;
+    isdefined(braket, :B) == true ? (Bij = braket(BraTensor, loc).A) : (Bij = Aij);
 
-    IA_u = iso_ket(UP, loc)[1];    IB_u = iso_bra(UP, loc)[1];
-    IA_r = iso_ket(RIGHT, loc)[1];    IB_r = iso_bra(RIGHT, loc)[1];
-    IA_d = iso_ket(DOWN, loc)[1];    IB_d = iso_bra(DOWN, loc)[1];
-    IA_l = iso_ket(LEFT, loc)[1];    IB_l = iso_bra(LEFT, loc)[1];
+    @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij[uk, rk, dk, lk, α] * conj(Bij)[ub, rb, db, lb, α]; # Contract physical index
 
-    #@info "Sizes of A, IA, IB, B" size(A), size(IA_up), size(IB_up), size(B)
-    @tensor T1[rk, rb, lk, lb, dk, db] := A[α, rk, dk, lk, δ] * IA_u[α, β] * IB_u[γ, β] * B[γ, rb, db, lb, δ];
-    @tensor T2[uk, ub, dk, db, lk, lb] := A[uk, α, dk, lk, δ] * IA_r[α, β] * IB_r[γ, β] * B[ub, γ, db, lb, δ];
-    @tensor T3[rk, rb, lk, lb, uk, ub] := A[uk, rk, α, lk, δ] * IA_d[α, β] * IB_d[γ, β] * B[ub, rb, γ, lb, δ];
-    @tensor T4[uk, ub, dk, db, rk, rb] := A[uk, rk, dk, α, δ] * IA_l[α, β] * IB_l[γ, β] * B[ub, rb, db, γ, δ];
+    IA_u = isos(UP, loc)[1];    IA_r = isos(RIGHT, loc)[1];    IA_d = isos(DOWN, loc)[1];    IA_l = isos(LEFT, loc)[1];
 
-    T1 = reshape(T1, (D_A[2] * D_B[2], D_A[4] * D_B[4], D_A[3], D_B[3]));
-    T2 = reshape(T2, (D_A[1] * D_B[1], D_A[3] * D_B[3], D_A[4], D_B[4]));
-    T3 = reshape(T3, (D_A[2] * D_B[2], D_A[4] * D_B[4], D_A[1], D_B[1]));
-    T4 = reshape(T4, (D_A[1] * D_B[1], D_A[3] * D_B[3], D_A[2], D_B[2]));
+    @tensor C1[dk, db, lk, lb] := Rij[α, β, γ, δ, dk, db, lk, lb] * IA_u[α, β] * IA_r[γ, δ];
+    @tensor C2[uk, ub, lk, lb] := Rij[uk, ub, α, β, γ, δ, lk, lb] * IA_r[α, β] * IA_d[γ, δ];
+    @tensor C3[uk, ub, rk, rb] := Rij[uk, ub, rk, rb, α, β, γ, δ] * IA_d[α, β] * IA_l[γ, δ];
+    @tensor C4[rk, rb, dk, db] := Rij[γ, δ, rk, rb, dk, db, α, β] * IA_l[α, β] * IA_u[γ, δ];
 
-    Ts = [T1, T2, T3, T4];
-
-    @tensor C1[dk, db, lk, lb] := A[μ, α, dk, lk, δ] * IA_u[μ, ν] * IB_u[ω, ν] * IA_r[α, β] * IB_r[γ, β] * B[ω, γ, db, lb, δ];
-    @tensor C2[uk, ub, lk, lb] := A[uk, α, μ, lk, δ] * IA_d[μ, ν] * IB_d[ω, ν] * IA_r[α, β] * IB_r[γ, β] * B[ub, γ, ω, lb, δ];
-    @tensor C3[uk, ub, rk, rb] := A[uk, rk, μ, α, δ] * IA_d[μ, ν] * IB_d[ω, ν] * IA_l[α, β] * IB_l[γ, β] * B[ub, rb, ω, γ, δ];
-    @tensor C4[rk, rb, dk, db] := A[μ, rk, dk, α, δ] * IA_u[μ, ν] * IB_u[ω, ν] * IA_l[α, β] * IB_l[γ, β] * B[ω, rb, db, γ, δ];
-
-
-    C1 = reshape(C1, (D_A[3] * D_B[3], :));
-    C2 = reshape(C2, (D_A[1] * D_B[1], :));
-    C3 = reshape(C3, (D_A[1] * D_B[1], :));
-    C4 = reshape(C4, (D_A[2] * D_B[2], :));
-
-
-    Cs = [C1, C2, C3, C4];
-
-    return Cs, Ts
-
-end
-
-
-function generate_environment_tensors(unitcell::UnitCell, coord::CartesianIndex)
-
-    if isdefined(unitcell, :R) == false
-        Aij = unitcell(Tensor, coord);
-
-        @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij.A[uk, rk, dk, lk, α] * conj(Aij.A)[ub, rb, db, lb, α]; # Contract physical index
-    else
-        R = unitcell(ReducedTensor, coord);
-        D = Int64.(sqrt.(R.D));
-        Rij = reshape(R.R, (D[1], D[1], D[2], D[2], D[3], D[3], D[4], D[4]));
-    end
-
-
-    @tensor C1[dk, db, lk, lb] := Rij[α, α, β, β, dk, db, lk, lb];
-    @tensor C2[uk, ub, lk, lb] := Rij[uk, ub, α, α, β, β, lk, lb];
-    @tensor C3[uk, ub, rk, rb] := Rij[uk, ub, rk, rb, α, α, β, β];
-    @tensor C4[rk, rb, dk, db] := Rij[α, α, rk, rb, dk, db, β, β];
-
-    @tensor T1[rk, rb, lk, lb, dk, db] := Rij[α, α, rk, rb, dk, db, lk, lb];
-    @tensor T2[uk, ub, dk, db, lk, lb] := Rij[uk, ub, α, α, dk, db, lk, lb];
-    @tensor T3[rk, rb, lk, lb, uk, ub] := Rij[uk, ub, rk, rb, α, α, lk, lb];
-    @tensor T4[uk, ub, dk, db, rk, rb] := Rij[uk, ub, rk, rb, dk, db, α, α];
+    @tensor T1[rk, rb, lk, lb, dk, db] := Rij[α, β, rk, rb, dk, db, lk, lb] * IA_u[α, β];
+    @tensor T2[uk, ub, dk, db, lk, lb] := Rij[uk, ub, α, β, dk, db, lk, lb] * IA_r[α, β];
+    @tensor T3[rk, rb, lk, lb, uk, ub] := Rij[uk, ub, rk, rb, α, β, lk, lb] * IA_d[α, β];
+    @tensor T4[uk, ub, dk, db, rk, rb] := Rij[uk, ub, rk, rb, dk, db, α, β] * IA_l[α, β];
 
     C1 = reshape(C1, (prod(size(C1)[1:2]), :));
     C2 = reshape(C2, (prod(size(C2)[1:2]), :));
@@ -218,7 +198,59 @@ function generate_environment_tensors(unitcell::UnitCell, coord::CartesianIndex)
     Ts = [T1, T2, T3, T4];
 
     return Cs, Ts
+
 end
+
+function generate_environment_tensors(unitcell::UnitCell, coord::CartesianIndex)
+    Aij = unitcell(Tensor, coord).A;
+
+    if isdefined(unitcell, :B) == true
+        Bij = unitcell(BraTensor, coord).A
+
+        @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij[uk, rk, dk, lk, α] * conj(Bij)[ub, rb, db, lb, α]; # Contract physical index
+
+        C1 = Rij[1, 1, 1, 1, :, :, :, :];
+        C2 = Rij[:, :, 1, 1, 1, 1, :, :];
+        C3 = Rij[:, :, :, :, 1, 1, 1, 1];
+        C4 = Rij[1, 1, :, :, :, :, 1, 1];
+
+        T1 = Rij[1, 1, :, :, :, :, :, :];
+        T2 = Rij[:, :, 1, 1, :, :, :, :];
+        T3 = Rij[:, :, :, :, 1, 1, :, :];
+        T4 = Rij[:, :, :, :, :, :, 1, 1];
+    else
+        @tensor Rij[uk, ub, rk, rb, dk, db, lk, lb] := Aij[uk, rk, dk, lk, α] * conj(Aij)[ub, rb, db, lb, α]; # Contract physical index
+
+        @tensor C1[dk, db, lk, lb] := Rij[α, α, β, β, dk, db, lk, lb];
+        @tensor C2[uk, ub, lk, lb] := Rij[uk, ub, α, α, β, β, lk, lb];
+        @tensor C3[uk, ub, rk, rb] := Rij[uk, ub, rk, rb, α, α, β, β];
+        @tensor C4[rk, rb, dk, db] := Rij[α, α, rk, rb, dk, db, β, β];
+
+        @tensor T1[rk, rb, lk, lb, dk, db] := Rij[α, α, rk, rb, dk, db, lk, lb];
+        @tensor T2[uk, ub, dk, db, lk, lb] := Rij[uk, ub, α, α, dk, db, lk, lb];
+        @tensor T3[rk, rb, lk, lb, uk, ub] := Rij[uk, ub, rk, rb, α, α, lk, lb];
+        @tensor T4[uk, ub, dk, db, rk, rb] := Rij[uk, ub, rk, rb, dk, db, α, α];
+    end
+
+
+    C1 = reshape(C1, (prod(size(C1)[1:2]), :));
+    C2 = reshape(C2, (prod(size(C2)[1:2]), :));
+    C3 = reshape(C3, (prod(size(C3)[1:2]), :));
+    C4 = reshape(C4, (prod(size(C4)[1:2]), :));
+
+    T1 = reshape(T1, (prod(size(T1)[1:2]), prod(size(T1)[3:4]), size(T1, 5), size(T1, 6)));
+    T2 = reshape(T2, (prod(size(T2)[1:2]), prod(size(T2)[3:4]), size(T2, 5), size(T2, 6)));
+    T3 = reshape(T3, (prod(size(T3)[1:2]), prod(size(T3)[3:4]), size(T3, 5), size(T3, 6)));
+    T4 = reshape(T4, (prod(size(T4)[1:2]), prod(size(T4)[3:4]), size(T4, 5), size(T4, 6)));
+
+
+    Cs = [C1, C2, C3, C4];
+    Ts = [T1, T2, T3, T4];
+
+    return Cs, Ts
+
+end
+
 
 
 """
@@ -276,7 +308,7 @@ function calculate_rdm(unitcell::UnitCell, loc::CartesianIndex)
 
     A = unitcell(Tensor, loc).A;
     if isdefined(unitcell, :B) == true
-        B = unitcell(BTensor, loc).A;
+        B = unitcell(BraTensor, loc).A;
     else
         B = conj(A);
     end

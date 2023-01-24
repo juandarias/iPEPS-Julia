@@ -12,7 +12,8 @@
 function update_environment!(unitcell::UnitCell, projectors::Projectors, simulation::Simulation)
 
     ϵ = 1.0;
-    i = 0
+    i = 0;
+    expval = 1.0;
 
     do_ctmrg_iteration!(unitcell, projectors, Χ = simulation.Χ);
     while ϵ > simulation.tol_ctm
@@ -22,18 +23,32 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
         do_ctmrg_iteration!(unitcell, projectors, Χ = simulation.Χ);
         ϵ = calculate_error_ctm(Eref, unitcell.E);
 
-        @info "CTM iteration $i, convergence error = $(round(abs(ϵ), sigdigits = 4))";
+        log_message("\nCTM iteration $i, convergence error = $(round(abs(ϵ), sigdigits = 4))\n", color = :blue);
+
+        if simulation.ctm_convergence == Observable
+            ref_expval = copy(expval);
+            expval, n = calculate_error_ctm(unitcell, simulation)
+
+            if abs((ref_expval - expval)/expval) < simulation.tol_expval
+                log_message("\n!!! CTM converged !!!\n", color = :green)
+                simulation.conv_ctm_steps = i;
+                simulation.ctm_error = ϵ;
+                return true
+            end
+        end
 
         if i > simulation.max_ctm_steps
-            @warn "!!! Maximum number of iterations reached !!!"
+            log_message("\n!!! Maximum number of iterations reached !!!\n", color = :red)
             simulation.conv_ctm_steps = i;
             simulation.ctm_error = ϵ;
-            return ϵ
+            return false
         end
+
     end
 
     simulation.conv_ctm_steps = i;
     simulation.ctm_error = ϵ;
+    return true
 end
 
 
@@ -224,7 +239,7 @@ end
 function do_ctm_move!(unitcell::UnitCell, projectors::Projectors, direction::Direction, loc::CartesianIndex)
     E_loc = unitcell(Environment, loc);
     A = unitcell(Tensor, loc).A;
-    isdefined(unitcell, :B) == true ? (B = unitcell(BTensor, loc).A) : (B = A);
+    isdefined(unitcell, :B) == true ? (B = unitcell(BraTensor, loc).A) : (B = A);
 
     if direction == UP
 
@@ -351,7 +366,7 @@ function projectors_half_system(Qa::Array{T, 6}, Qb::Array{T, 6}, Χ::Int64) whe
     @tensor rho[lde, ldk, ldb, rde, rdk, rdb] := Qa[lde, ldk, ldb, α, β, γ] * Qb[α, β, γ, rde, rdk, rdb];
 
     # Calculate projectors
-    U, S, Vt = tensor_svd(rho, [[1,2,3], [4,5,6]], Χ = Χ);
+    U, S, Vt = tensor_svd(rho, [[1,2,3], [4,5,6]], Χ = Χ, full_svd = false);
     Sinvsqrt = diagm(S.^(-1/2));
 
     @tensor P̃[le, lk, lb, re] := Qb[le, lk, lb, α, β, γ] * Vt[δ, α, β, γ] * Sinvsqrt[δ, re];
@@ -390,7 +405,7 @@ function calculate_projectors_ctmrg!(
         T1 = uc(Environment, loc + (-1, 0)).T[1];
         T4 = uc(Environment, loc + (0, -1)).T[4];
         A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc).A) : (B = A);
 
 
         # Build enlarged corner
@@ -403,7 +418,7 @@ function calculate_projectors_ctmrg!(
         T1 = uc(Environment, loc + (-1, 1)).T[1];
         T2 = uc(Environment, loc + (0, 2)).T[2];
         A = uc(Tensor, loc + (0, 1)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (0, 1)).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc + (0, 1)).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q1[le, lk, lb, de, dk, db] := C1[α, β] * T1[β, le, δ, θ] * T2[α, de, γ, ξ]  * A[δ, γ, dk, lk, p] * conj(B)[θ, ξ, db, lb, p];
@@ -444,7 +459,7 @@ function calculate_projectors_ctmrg!(
         T1 = uc(Environment, loc + (-1, 0)).T[1];
         T2 = uc(Environment, loc + (0, 1)).T[2];
         A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q1[le, lk, lb, de, dk, db] := C1[α, β] * T1[β, le, δ, θ] * T2[α, de, γ, ξ]  * A[δ, γ, dk, lk, p] * conj(B)[θ, ξ, db, lb, p];
@@ -456,7 +471,7 @@ function calculate_projectors_ctmrg!(
         T3 = uc(Environment, loc + (2, 0)).T[3];
         T2 = uc(Environment, loc + (1, 1)).T[2];
         A = uc(Tensor, loc + (1, 0)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (1, 0)).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc + (1, 0)).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q2[ue, uk, ub, le, lk, lb] := C2[α, β] * T2[ue, α, γ, ξ] * T3[β, le, δ, θ] * A[uk, γ, δ, lk, p] * conj(B)[ub, ξ, θ, lb, p];
@@ -489,7 +504,7 @@ function calculate_projectors_ctmrg!(
         T3 = uc(Environment, loc + (1, 0)).T[3];
         T4 = uc(Environment, loc + (0, -1)).T[4];
         A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q3[ue, uk, ub, re, rk, rb] := C3[α, β] * T4[ue, α, γ, ξ] * T3[re, β, δ, θ] * A[uk, rk, δ, γ, p] * conj(B)[ub, rb, θ, ξ, p];
@@ -501,7 +516,7 @@ function calculate_projectors_ctmrg!(
         T3 = uc(Environment, loc + (1, 1)).T[3];
         T2 = uc(Environment, loc + (0, 2)).T[2];
         A = uc(Tensor, loc + (0, 1)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (0, 1)).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc + (0, 1)).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q2[le, lk, lb, ue, uk, ub] := C2[α, β] * T2[ue, α, γ, ξ] * T3[β, le, δ, θ] * A[uk, γ, δ, lk, p] * conj(B)[ub, ξ, θ, lb, p];
@@ -538,7 +553,7 @@ function calculate_projectors_ctmrg!(
         T1 = uc(Environment, loc  + (-1, 0)).T[1];
         T4 = uc(Environment, loc + (0, -1)).T[4];
         A = uc(Tensor, loc).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q4[re, rk, rb, de, dk, db] := C4[α, β] * T1[re, α, γ, ξ] * T4[β, de, δ, θ] * A[γ, rk, dk, δ, p] * conj(B)[ξ, rb, db, θ, p];
@@ -550,7 +565,7 @@ function calculate_projectors_ctmrg!(
         T3 = uc(Environment, loc + (2, 0)).T[3];
         T4 = uc(Environment, loc + (1, -1)).T[4];
         A = uc(Tensor, loc + (1, 0)).A;
-        isdefined(uc, :B) == true ? (B = uc(BTensor, loc + (1, 0)).A) : (B = A);
+        isdefined(uc, :B) == true ? (B = uc(BraTensor, loc + (1, 0)).A) : (B = A);
 
         # Build enlarged corner
         @tensor Q3[ue, uk, ub, re, rk, rb] := C3[α, β] * T4[ue, α, γ, ξ] * T3[re, β, δ, θ] * A[uk, rk, δ, γ, p] * conj(B)[ub, rb, θ, ξ, p];
@@ -564,6 +579,7 @@ function calculate_projectors_ctmrg!(
         # Save spectra
         uc.E[loc].spectra[4] = S_f;
 
+        return Q4, Q3
     end
 
 end
@@ -615,11 +631,31 @@ function calculate_error_ctm(Eref::Array{Environment{T},2}, Eupd::Array{Environm
 
     ϵ = 0.0;
     for xy ∈ CartesianIndices(size(Eref))
-        ϵ += sum([sum(abs.(Eupd[xy].spectra[n] - Eref[xy].spectra[n])) for n ∈ 1:4])
+        ϵ += sum([sum(abs.(Eupd[xy].spectra[n] - Eref[xy].spectra[n])) for n ∈ 1:4])/4
     end
 
-    return ϵ
+    return ϵ/prod(size(Eref))
 end
+
+function calculate_error_ctm(unitcell::UnitCell, simulation::Simulation)
+
+    O = simulation.observables[1].O;
+    loc = simulation.observables[1].loc[1];
+    name_O = simulation.observables[1].name;
+
+    rho = calculate_rdm(unitcell, loc);
+    n = tr(rho);
+    @tensor expval = (1/n) * rho[α, β] * O[α, β]
+
+    log_message("$name_O at $(Tuple(loc)) = $(round(expval, sigdigits=4)), norm = $(round(n, sigdigits = 4)) \n", color = :blue);
+
+    if length(simulation.observables) > 1
+        @assert "Not implemented yet"
+    end
+
+    return expval, n
+end
+
 
 function cutoff(S::Vector{Float64}, χmax::Int, ϵ::Float64)
     Χ = length(S);
@@ -642,7 +678,7 @@ end
 function do_ctm_move_old!(unitcell::UnitCell, projectors::Projectors, direction::Direction, loc::CartesianIndex)
     E_loc = unitcell(Environment, loc);
     A = unitcell(Tensor, loc).A;
-    isdefined(unitcell, :B) == true ? (B = unitcell(BTensor, loc).A) : (B = conj(A));
+    isdefined(unitcell, :B) == true ? (B = unitcell(BraTensor, loc).A) : (B = conj(A));
 
 
     """

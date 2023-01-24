@@ -7,8 +7,9 @@ module ipeps_ctm
 
     import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!, SVD
     import Base: +
-    import IterativeSolvers: svdl
-    import KrylovKit: svdsolve
+    #import IterativeSolvers: svdl
+    #import KrylovKit: svdsolve
+    import PROPACK: tsvd as ptsvd #! only one working
     #import Combinatorics: permutations
     using TensorOperations
     #using PrecompileSignatures: @precompile_signatures #* Speeds up first call of methods
@@ -30,13 +31,13 @@ module ipeps_ctm
     export Hamiltonian
 
     #= iPEPS types =#
-    export Tensor, SimpleUpdateTensor, ReducedTensor, BTensor
+    export Tensor, SimpleUpdateTensor, ReducedTensor, BraTensor
     export UnitCell, Environment
     export Operator
     export LatticeSymmetry, R4, XY, UNDEF
 
     #= iPEPS methods =#
-    export initialize_environment!, reinitialize_environment
+    export initialize_environment!, reinitialize_environment!
     export braket_unitcell
     export apply_operator
     export overlap
@@ -53,14 +54,15 @@ module ipeps_ctm
     #= CTM types =#
     export Direction, UP, RIGHT, DOWN, LEFT, VERTICAL, HORIZONTAL # CTM moves and legs direction
     export Renormalization, Projectors, Start, EachMove
+    export Convergence, Observable, SingularValues
 
     # Projectors
 
     #= CTM methods =#
     export update_environment!
     export do_ctmrg_iteration!
-    export calculate_projectors_ctmrg!
-    export do_ctm_move!
+    #export calculate_projectors_ctmrg!
+    #export do_ctm_move!
 
     #= General methods =#
     export cast_tensor, cast_tensor!
@@ -72,6 +74,8 @@ module ipeps_ctm
 
     #= Others =#
     #export GROUNDSTATE_SU2
+    export log_message
+
 
     ###########
     # Imports #
@@ -90,6 +94,7 @@ module ipeps_ctm
     #= Others =#
     #include("./simulation_types.jl")
     include("./aux_methods.jl")
+    include("./logger.jl")
 
     ##########
     # Others #

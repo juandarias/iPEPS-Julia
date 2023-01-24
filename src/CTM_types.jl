@@ -13,6 +13,10 @@ abstract type Start <: Renormalization end
 abstract type EachMove <: Renormalization end
 abstract type BraKetOverlap <: Renormalization end
 
+abstract type Convergence end
+abstract type Observable <: Convergence end
+abstract type SingularValues <: Convergence end
+
 """
     mutable struct Projectors{T<:Renormalization}
 

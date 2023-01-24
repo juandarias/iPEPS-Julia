@@ -1,0 +1,1009 @@
+
+Time: 18:24:20->
+CTM iteration 1, convergence error = 0.001098
+
+Time: 18:24:22->
+CTM iteration 2, convergence error = 0.0002266
+
+Time: 18:24:24->
+CTM iteration 3, convergence error = 4.687e-5
+
+Time: 18:24:26->
+CTM iteration 4, convergence error = 9.702e-6
+
+Time: 18:24:28->
+CTM iteration 5, convergence error = 2.009e-6
+
+Time: 18:24:29->
+CTM iteration 6, convergence error = 4.159e-7
+
+Time: 18:24:31->
+CTM iteration 7, convergence error = 8.611e-8
+
+Time: 18:24:33->
+CTM iteration 8, convergence error = 1.783e-8
+
+Time: 18:24:35->
+CTM iteration 9, convergence error = 3.692e-9
+
+Time: 18:24:36->
+CTM iteration 10, convergence error = 7.644e-10
+
+Time: 18:24:38->
+CTM iteration 11, convergence error = 1.583e-10
+
+Time: 18:24:38->
+!!! Maximum number of iterations reached !!!
+
+Time: 18:25:12->
+CTM iteration 1, convergence error = 6.786e-12
+
+Time: 18:28:20->
+CTM iteration 1, convergence error = 39.91
+
+Time: 18:28:21->
+CTM iteration 2, convergence error = 39.34
+
+Time: 18:28:23->
+CTM iteration 3, convergence error = 38.05
+
+Time: 18:28:25->
+CTM iteration 4, convergence error = 42.56
+
+Time: 18:28:27->
+CTM iteration 5, convergence error = 41.23
+
+Time: 18:28:29->
+CTM iteration 6, convergence error = 29.34
+
+Time: 18:28:30->
+CTM iteration 7, convergence error = 39.41
+
+Time: 18:28:32->
+CTM iteration 8, convergence error = 39.14
+
+Time: 18:28:34->
+CTM iteration 9, convergence error = 36.51
+
+Time: 18:28:36->
+CTM iteration 10, convergence error = 32.09
+
+Time: 18:28:38->
+CTM iteration 11, convergence error = 42.59
+
+Time: 18:28:38->
+!!! Maximum number of iterations reached !!!
+
+Time: 18:33:34->
+CTM iteration 1, convergence error = 0.8788
+
+Time: 18:33:36->
+CTM iteration 2, convergence error = 0.1453
+
+Time: 18:33:37->
+CTM iteration 3, convergence error = 0.1031
+
+Time: 18:33:39->
+CTM iteration 4, convergence error = 0.08952
+
+Time: 18:33:41->
+CTM iteration 5, convergence error = 0.09601
+
+Time: 18:33:43->
+CTM iteration 6, convergence error = 0.1057
+
+Time: 18:33:44->
+CTM iteration 7, convergence error = 0.09401
+
+Time: 18:33:46->
+CTM iteration 8, convergence error = 0.09108
+
+Time: 18:33:47->
+CTM iteration 9, convergence error = 0.08976
+
+Time: 18:33:49->
+CTM iteration 10, convergence error = 0.0999
+
+Time: 18:33:51->
+CTM iteration 11, convergence error = 0.09071
+
+Time: 18:33:51->
+!!! Maximum number of iterations reached !!!
+
+Time: 18:34:13->
+CTM iteration 1, convergence error = 201.2
+
+Time: 18:34:21->
+CTM iteration 2, convergence error = 25.92
+
+Time: 18:34:29->
+CTM iteration 3, convergence error = 5.799
+
+Time: 18:34:39->
+CTM iteration 4, convergence error = 1.927
+
+Time: 18:34:47->
+CTM iteration 5, convergence error = 0.6052
+
+Time: 18:34:55->
+CTM iteration 6, convergence error = 0.3076
+
+Time: 18:35:03->
+CTM iteration 7, convergence error = 0.2414
+
+Time: 18:35:13->
+CTM iteration 8, convergence error = 0.1631
+
+Time: 18:35:24->
+CTM iteration 9, convergence error = 0.1486
+
+Time: 18:35:32->
+CTM iteration 10, convergence error = 0.09605
+
+Time: 18:35:40->
+CTM iteration 11, convergence error = 0.09664
+
+Time: 18:35:40->
+!!! Maximum number of iterations reached !!!
+
+Time: 18:35:50->
+CTM iteration 1, convergence error = 0.9108
+
+Time: 18:35:52->
+CTM iteration 2, convergence error = 0.1446
+
+Time: 18:35:54->
+CTM iteration 3, convergence error = 0.1044
+
+Time: 18:35:55->
+CTM iteration 4, convergence error = 0.1007
+
+Time: 18:35:57->
+CTM iteration 5, convergence error = 0.1029
+
+Time: 18:35:58->
+CTM iteration 6, convergence error = 0.09555
+
+Time: 18:36:00->
+CTM iteration 7, convergence error = 0.09239
+
+Time: 18:36:02->
+CTM iteration 8, convergence error = 0.09416
+
+Time: 18:36:03->
+CTM iteration 9, convergence error = 0.09582
+
+Time: 18:36:05->
+CTM iteration 10, convergence error = 0.1155
+
+Time: 18:36:06->
+CTM iteration 11, convergence error = 0.09877
+
+Time: 18:36:06->
+!!! Maximum number of iterations reached !!!
+
+Time: 07:09:26->
+CTM iteration 1, convergence error = 80.66
+
+Time: 13:02:35->
+CTM iteration 1, convergence error = 0.224
+
+Time: 13:17:09->
+CTM iteration 2, convergence error = 0.3214
+
+Time: 13:50:05->
+CTM iteration 1, convergence error = 0.2631
+
+Time: 14:04:03->
+CTM iteration 1, convergence error = 0.7785
+
+Time: 14:04:59->
+CTM iteration 2, convergence error = 0.6741
+
+Time: 14:05:55->
+CTM iteration 3, convergence error = 0.667
+
+Time: 14:06:46->
+CTM iteration 4, convergence error = 0.6646
+
+Time: 14:13:28->
+CTM iteration 1, convergence error = 0.7963
+
+Time: 14:14:18->
+CTM iteration 2, convergence error = 0.6746
+
+Time: 14:15:08->
+CTM iteration 3, convergence error = 0.7107
+
+Time: 14:16:02->
+CTM iteration 4, convergence error = 0.6752
+
+Time: 14:59:08->
+CTM iteration 1, convergence error = 0.7299
+
+Time: 15:00:04->
+CTM iteration 2, convergence error = 0.6748
+
+Time: 15:01:05->
+CTM iteration 3, convergence error = 0.6878
+
+Time: 15:01:59->
+CTM iteration 4, convergence error = 0.6722
+
+Time: 15:02:55->
+CTM iteration 5, convergence error = 0.6866
+
+Time: 15:05:19->
+CTM iteration 1, convergence error = 0.0382
+
+Time: 15:05:54->
+CTM iteration 2, convergence error = 0.007402
+
+Time: 15:06:27->
+CTM iteration 3, convergence error = 0.002563
+
+Time: 15:07:00->
+CTM iteration 4, convergence error = 0.0007949
+
+Time: 15:07:32->
+CTM iteration 5, convergence error = 0.0004062
+
+Time: 15:08:04->
+CTM iteration 6, convergence error = 0.0001848
+
+Time: 15:08:37->
+CTM iteration 7, convergence error = 7.392e-5
+
+Time: 15:09:09->
+CTM iteration 8, convergence error = 2.638e-5
+
+Time: 15:09:40->
+CTM iteration 9, convergence error = 1.013e-5
+
+Time: 15:10:14->
+CTM iteration 10, convergence error = 3.9e-6
+
+Time: 15:10:48->
+CTM iteration 11, convergence error = 1.773e-6
+
+Time: 15:10:48->
+!!! Maximum number of iterations reached !!!
+
+Time: 15:11:38->
+CTM iteration 1, convergence error = 0.5187
+
+Time: 15:11:55->
+CTM iteration 2, convergence error = 0.5793
+
+Time: 15:23:44->
+CTM iteration 1, convergence error = 1.174
+
+Time: 15:31:01->
+CTM iteration 2, convergence error = 0.8406
+
+Time: 15:38:12->
+CTM iteration 3, convergence error = 0.7895
+
+Time: 15:45:23->
+CTM iteration 4, convergence error = 0.8561
+
+Time: 15:59:01->
+CTM iteration 1, convergence error = 0.1225
+
+Time: 16:00:44->
+CTM iteration 2, convergence error = 0.2472
+
+Time: 16:02:18->
+CTM iteration 3, convergence error = 0.248
+
+Time: 16:03:52->
+CTM iteration 4, convergence error = 0.2229
+
+Time: 16:05:42->
+CTM iteration 5, convergence error = 0.2082
+
+Time: 16:07:21->
+CTM iteration 6, convergence error = 0.2701
+
+Time: 16:09:00->
+CTM iteration 7, convergence error = 0.2678
+
+Time: 16:10:45->
+CTM iteration 8, convergence error = 0.2664
+
+Time: 16:23:00->
+CTM iteration 1, convergence error = 0.008138
+
+Time: 16:23:00->
+At site (3, 3), ⟨Z⟩ = -0.3561
+
+Time: 16:23:03->
+CTM iteration 2, convergence error = 0.001406
+
+Time: 16:23:03->
+At site (3, 3), ⟨Z⟩ = -0.3574
+
+Time: 16:23:05->
+CTM iteration 3, convergence error = 0.0002669
+
+Time: 16:23:05->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:07->
+CTM iteration 4, convergence error = 5.357e-5
+
+Time: 16:23:07->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:10->
+CTM iteration 5, convergence error = 1.098e-5
+
+Time: 16:23:10->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:12->
+CTM iteration 6, convergence error = 2.266e-6
+
+Time: 16:23:12->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:13->
+CTM iteration 7, convergence error = 4.687e-7
+
+Time: 16:23:13->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:15->
+CTM iteration 8, convergence error = 9.702e-8
+
+Time: 16:23:15->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:18->
+CTM iteration 9, convergence error = 2.009e-8
+
+Time: 16:23:18->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:19->
+CTM iteration 10, convergence error = 4.159e-9
+
+Time: 16:23:19->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:21->
+CTM iteration 11, convergence error = 8.611e-10
+
+Time: 16:23:21->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:23:21->
+!!! Maximum number of iterations reached !!!
+
+Time: 16:23:42->
+CTM iteration 1, convergence error = 0.4465
+
+Time: 16:23:42->
+At site (3, 3), ⟨Z⟩ = -0.358
+
+Time: 16:23:44->
+CTM iteration 2, convergence error = 0.3747
+
+Time: 16:23:44->
+At site (3, 3), ⟨Z⟩ = -0.3955
+
+Time: 16:23:47->
+CTM iteration 3, convergence error = 0.3711
+
+Time: 16:23:47->
+At site (3, 3), ⟨Z⟩ = -0.3643
+
+Time: 16:23:49->
+CTM iteration 4, convergence error = 0.3815
+
+Time: 16:23:49->
+At site (3, 3), ⟨Z⟩ = -0.3704
+
+Time: 16:23:51->
+CTM iteration 5, convergence error = 0.374
+
+Time: 16:23:51->
+At site (3, 3), ⟨Z⟩ = -0.3497
+
+Time: 16:23:54->
+CTM iteration 6, convergence error = 0.3702
+
+Time: 16:23:54->
+At site (3, 3), ⟨Z⟩ = -0.3703
+
+Time: 16:23:56->
+CTM iteration 7, convergence error = 0.3277
+
+Time: 16:23:56->
+At site (3, 3), ⟨Z⟩ = -0.3676
+
+Time: 16:24:00->
+CTM iteration 8, convergence error = 0.3858
+
+Time: 16:24:00->
+At site (3, 3), ⟨Z⟩ = -0.348
+
+Time: 16:24:02->
+CTM iteration 9, convergence error = 0.3902
+
+Time: 16:24:02->
+At site (3, 3), ⟨Z⟩ = -0.3645
+
+Time: 16:24:04->
+CTM iteration 10, convergence error = 0.3314
+
+Time: 16:24:04->
+At site (3, 3), ⟨Z⟩ = -0.349
+
+Time: 16:24:07->
+CTM iteration 11, convergence error = 0.3717
+
+Time: 16:24:07->
+At site (3, 3), ⟨Z⟩ = -0.3252
+
+Time: 16:24:07->
+!!! Maximum number of iterations reached !!!
+
+Time: 16:24:12->
+CTM iteration 1, convergence error = 0.3004
+
+Time: 16:24:12->
+At site (3, 3), ⟨Z⟩ = -0.3483
+
+Time: 16:24:15->
+CTM iteration 2, convergence error = 0.3649
+
+Time: 16:24:15->
+At site (3, 3), ⟨Z⟩ = -0.363
+
+Time: 16:24:17->
+CTM iteration 3, convergence error = 0.4407
+
+Time: 16:24:17->
+At site (3, 3), ⟨Z⟩ = -0.3717
+
+Time: 16:24:19->
+CTM iteration 4, convergence error = 0.4387
+
+Time: 16:24:19->
+At site (3, 3), ⟨Z⟩ = -0.378
+
+Time: 16:24:21->
+CTM iteration 5, convergence error = 0.4543
+
+Time: 16:24:21->
+At site (3, 3), ⟨Z⟩ = -0.3687
+
+Time: 16:24:23->
+CTM iteration 6, convergence error = 0.4428
+
+Time: 16:24:23->
+At site (3, 3), ⟨Z⟩ = -0.3764
+
+Time: 16:24:26->
+CTM iteration 7, convergence error = 0.4084
+
+Time: 16:24:26->
+At site (3, 3), ⟨Z⟩ = -0.3569
+
+Time: 16:24:28->
+CTM iteration 8, convergence error = 0.4108
+
+Time: 16:24:28->
+At site (3, 3), ⟨Z⟩ = -0.3555
+
+Time: 16:24:30->
+CTM iteration 9, convergence error = 0.4301
+
+Time: 16:24:30->
+At site (3, 3), ⟨Z⟩ = -0.3587
+
+Time: 16:24:32->
+CTM iteration 10, convergence error = 0.4026
+
+Time: 16:24:32->
+At site (3, 3), ⟨Z⟩ = -0.3818
+
+Time: 16:24:34->
+CTM iteration 11, convergence error = 0.4504
+
+Time: 16:24:34->
+At site (3, 3), ⟨Z⟩ = -0.3101
+
+Time: 16:24:34->
+!!! Maximum number of iterations reached !!!
+
+Time: 16:32:32->
+CTM iteration 1, convergence error = 0.008138
+
+Time: 16:32:32->
+At site (3, 3), ⟨Z⟩ = -0.3561
+
+Time: 16:32:35->
+CTM iteration 2, convergence error = 0.001406
+
+Time: 16:32:35->
+At site (3, 3), ⟨Z⟩ = -0.3574
+
+Time: 16:32:38->
+CTM iteration 3, convergence error = 0.0002669
+
+Time: 16:32:38->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:32:42->
+CTM iteration 4, convergence error = 5.357e-5
+
+Time: 16:32:42->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:32:45->
+CTM iteration 5, convergence error = 1.098e-5
+
+Time: 16:32:45->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:32:48->
+CTM iteration 6, convergence error = 2.266e-6
+
+Time: 16:32:48->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:32:51->
+CTM iteration 7, convergence error = 4.687e-7
+
+Time: 16:32:51->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:32:54->
+CTM iteration 8, convergence error = 9.702e-8
+
+Time: 16:32:54->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:32:57->
+CTM iteration 9, convergence error = 2.009e-8
+
+Time: 16:32:57->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:33:00->
+CTM iteration 10, convergence error = 4.159e-9
+
+Time: 16:33:00->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:33:04->
+CTM iteration 11, convergence error = 8.611e-10
+
+Time: 16:33:04->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:33:04->
+!!! Maximum number of iterations reached !!!
+
+Time: 16:35:41->
+CTM iteration 1, convergence error = 0.008138
+
+Time: 16:35:41->
+At site (3, 3), ⟨Z⟩ = -0.3561
+
+Time: 16:35:44->
+CTM iteration 2, convergence error = 0.001406
+
+Time: 16:35:44->
+At site (3, 3), ⟨Z⟩ = -0.3574
+
+Time: 16:35:47->
+CTM iteration 3, convergence error = 0.0002669
+
+Time: 16:35:47->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:35:50->
+CTM iteration 4, convergence error = 5.357e-5
+
+Time: 16:35:50->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:35:53->
+CTM iteration 5, convergence error = 1.098e-5
+
+Time: 16:35:53->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:35:56->
+CTM iteration 6, convergence error = 2.266e-6
+
+Time: 16:35:56->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:35:59->
+CTM iteration 7, convergence error = 4.687e-7
+
+Time: 16:35:59->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:36:02->
+CTM iteration 8, convergence error = 9.702e-8
+
+Time: 16:36:02->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:36:05->
+CTM iteration 9, convergence error = 2.009e-8
+
+Time: 16:36:05->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:36:08->
+CTM iteration 10, convergence error = 4.159e-9
+
+Time: 16:36:08->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:36:10->
+CTM iteration 11, convergence error = 8.611e-10
+
+Time: 16:36:10->
+At site (3, 3), ⟨Z⟩ = -0.3577
+
+Time: 16:36:10->
+!!! Maximum number of iterations reached !!!
+
+Time: 16:48:37->
+CTM iteration 1, convergence error = 0.3361
+
+Time: 16:48:37->
+At site (3, 3), ⟨Z⟩ = -0.2372
+
+Time: 16:49:24->
+CTM iteration 2, convergence error = 0.02248
+
+Time: 16:49:24->
+At site (3, 3), ⟨Z⟩ = -0.1946
+
+Time: 16:50:12->
+CTM iteration 3, convergence error = 0.04908
+
+Time: 16:50:12->
+At site (3, 3), ⟨Z⟩ = -0.207
+
+Time: 16:51:05->
+CTM iteration 4, convergence error = 0.05337
+
+Time: 16:51:05->
+At site (3, 3), ⟨Z⟩ = -0.1932
+
+Time: 16:51:52->
+CTM iteration 5, convergence error = 0.01297
+
+Time: 16:51:52->
+At site (3, 3), ⟨Z⟩ = -0.2008
+
+Time: 16:52:38->
+CTM iteration 6, convergence error = 0.01001
+
+Time: 16:52:38->
+At site (3, 3), ⟨Z⟩ = -0.1986
+
+Time: 16:53:26->
+CTM iteration 7, convergence error = 0.004417
+
+Time: 16:53:26->
+At site (3, 3), ⟨Z⟩ = -0.2019
+
+Time: 16:54:13->
+CTM iteration 8, convergence error = 0.001656
+
+Time: 16:54:13->
+At site (3, 3), ⟨Z⟩ = -0.2017
+
+Time: 16:55:00->
+CTM iteration 9, convergence error = 0.0006241
+
+Time: 16:55:00->
+At site (3, 3), ⟨Z⟩ = -0.2012
+
+Time: 16:55:49->
+CTM iteration 10, convergence error = 0.0002516
+
+Time: 16:55:49->
+At site (3, 3), ⟨Z⟩ = -0.2029
+
+Time: 16:56:39->
+CTM iteration 11, convergence error = 0.0001104
+
+Time: 16:56:39->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 16:56:39->
+!!! Maximum number of iterations reached !!!
+
+Time: 16:58:43->
+CTM iteration 1, convergence error = 1.791e-5
+
+Time: 16:58:43->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 16:59:40->
+CTM iteration 2, convergence error = 7.161e-6
+
+Time: 16:59:40->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:00:39->
+CTM iteration 3, convergence error = 3.144e-6
+
+Time: 17:00:39->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:01:38->
+CTM iteration 4, convergence error = 1.479e-6
+
+Time: 17:01:38->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:02:32->
+CTM iteration 5, convergence error = 6.424e-7
+
+Time: 17:02:32->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:03:23->
+CTM iteration 6, convergence error = 2.747e-7
+
+Time: 17:03:23->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:04:11->
+CTM iteration 7, convergence error = 1.129e-7
+
+Time: 17:04:11->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:04:59->
+CTM iteration 8, convergence error = 5.009e-8
+
+Time: 17:04:59->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:05:51->
+CTM iteration 9, convergence error = 2.376e-8
+
+Time: 17:05:51->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:06:39->
+CTM iteration 10, convergence error = 1.039e-8
+
+Time: 17:06:39->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:07:28->
+CTM iteration 11, convergence error = 4.444e-9
+
+Time: 17:07:28->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:07:28->
+!!! Maximum number of iterations reached !!!
+
+Time: 17:13:44->
+CTM iteration 1, convergence error = 0.06489
+
+Time: 17:13:44->
+At site (3, 3), ⟨Z⟩ = -0.1389
+
+Time: 17:14:33->
+CTM iteration 2, convergence error = 0.018
+
+Time: 17:14:33->
+At site (3, 3), ⟨Z⟩ = -0.1888
+
+Time: 17:15:21->
+CTM iteration 3, convergence error = 0.007981
+
+Time: 17:15:21->
+At site (3, 3), ⟨Z⟩ = -0.1982
+
+Time: 17:16:09->
+CTM iteration 4, convergence error = 0.004028
+
+Time: 17:16:09->
+At site (3, 3), ⟨Z⟩ = -0.2012
+
+Time: 17:16:56->
+CTM iteration 5, convergence error = 0.001873
+
+Time: 17:16:56->
+At site (3, 3), ⟨Z⟩ = -0.2022
+
+Time: 17:17:43->
+CTM iteration 6, convergence error = 0.0007441
+
+Time: 17:17:43->
+At site (3, 3), ⟨Z⟩ = -0.2024
+
+Time: 17:18:38->
+CTM iteration 7, convergence error = 0.0002764
+
+Time: 17:18:38->
+At site (3, 3), ⟨Z⟩ = -0.2029
+
+Time: 17:19:24->
+CTM iteration 8, convergence error = 0.0001027
+
+Time: 17:19:24->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:20:12->
+CTM iteration 9, convergence error = 4.384e-5
+
+Time: 17:20:12->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:21:02->
+CTM iteration 10, convergence error = 1.939e-5
+
+Time: 17:21:02->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:21:50->
+CTM iteration 11, convergence error = 7.366e-6
+
+Time: 17:21:50->
+At site (3, 3), ⟨Z⟩ = -0.203
+
+Time: 17:21:50->
+!!! Maximum number of iterations reached !!!
+
+Time: 17:28:37->
+CTM iteration 1, convergence error = 1.169e-6
+
+Time: 17:28:37->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:29:30->
+CTM iteration 2, convergence error = 4.994e-7
+
+Time: 17:29:30->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:30:20->
+CTM iteration 3, convergence error = 2.246e-7
+
+Time: 17:30:20->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:31:07->
+CTM iteration 4, convergence error = 8.596e-8
+
+Time: 17:31:07->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:31:56->
+CTM iteration 5, convergence error = 3.647e-8
+
+Time: 17:31:56->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:32:44->
+CTM iteration 6, convergence error = 1.501e-8
+
+Time: 17:32:44->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:33:31->
+CTM iteration 7, convergence error = 6.391e-9
+
+Time: 17:33:31->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:34:19->
+CTM iteration 8, convergence error = 2.907e-9
+
+Time: 17:34:19->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:35:09->
+CTM iteration 9, convergence error = 1.128e-9
+
+Time: 17:35:09->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:35:59->
+CTM iteration 10, convergence error = 4.988e-10
+
+Time: 17:35:59->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:36:45->
+CTM iteration 11, convergence error = 2.135e-10
+
+Time: 17:36:45->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:36:45->
+!!! Maximum number of iterations reached !!!
+
+Time: 17:39:43->
+CTM iteration 1, convergence error = 4.179e-11
+
+Time: 17:39:46->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:42:23->
+CTM iteration 1, convergence error = 9.363e-12
+
+Time: 17:42:23->⟨Z⟩ at (3, 3) = -0.203
+
+Time: 17:45:42->
+CTM iteration 1, convergence error = 5.184e-12
+
+Time: 17:45:42->⟨Z⟩ at (3, 3) = -0.203 - 0.001358im, norm = 0.08801810418686107 - 0.09421408280476029im 
+
+Time: 17:50:04->
+CTM iteration 1, convergence error = 0.06535
+
+Time: 17:50:04->⟨Z⟩ at (3, 3) = -0.1387 - 0.002919im, norm = 0.07938628575932472 - 0.05521303661608758im 
+
+Time: 17:51:25->
+CTM iteration 2, convergence error = 0.01808
+
+Time: 17:51:25->⟨Z⟩ at (3, 3) = -0.1888 - 0.0002273im, norm = 0.004342335600901099 + 0.11376034659372991im 
+
+Time: 17:52:40->
+CTM iteration 3, convergence error = 0.008018
+
+Time: 17:52:40->⟨Z⟩ at (3, 3) = -0.1982 - 0.001451im, norm = -0.08744476620399323 - 0.07703291495662526im 
+
+Time: 17:52:40->
+!!! Maximum number of iterations reached !!!
+
+Time: 17:55:36->
+CTM iteration 1, convergence error = 0.3403
+
+Time: 17:55:36->⟨Z⟩ at (3, 3) = -0.4671 - 0.346im, norm = -1.2295938874069476e-5 - 0.0020468970464251777im 
+
+Time: 17:56:51->
+CTM iteration 2, convergence error = 0.02775
+
+Time: 17:56:51->⟨Z⟩ at (3, 3) = -0.203 + 0.001526im, norm = -0.012900402387978141 - 0.06180056050774925im 
+
+Time: 17:58:06->
+CTM iteration 3, convergence error = 0.04723
+
+Time: 17:58:06->⟨Z⟩ at (3, 3) = -0.1968 - 0.002455im, norm = -0.06689761611592113 - 0.03277010309995122im 
+
+Time: 17:58:06->
+!!! Maximum number of iterations reached !!!
+
+Time: 18:01:25->
+CTM iteration 1, convergence error = 0.009981
+
+Time: 18:01:25->⟨Z⟩ at (3, 3) = -0.1956 - 0.0033im, norm = 0.08005155622782886 + 0.023884533266002542im 
+
+Time: 18:02:41->
+CTM iteration 2, convergence error = 0.007467
+
+Time: 18:02:41->⟨Z⟩ at (3, 3) = -0.2011 - 0.001097im, norm = 0.03682222219227301 - 0.10922470788334016im 
+
+Time: 18:03:59->
+CTM iteration 3, convergence error = 0.002801
+
+Time: 18:03:59->⟨Z⟩ at (3, 3) = -0.2034 - 0.0009529im, norm = 0.028154240086024705 - 0.11412811312261449im 
+
+Time: 18:03:59->
+!!! Maximum number of iterations reached !!!
+
+Time: 18:07:52->
+CTM iteration 1, convergence error = 0.0003934
+
+Time: 18:07:52->⟨Z⟩ at (3, 3) = -0.2027 - 0.001483im, norm = 0.11585632376733926 - 0.008904773332225686im 
+
+Time: 18:10:48->
+CTM iteration 1, convergence error = 6.36e-5
+
+Time: 18:10:48->⟨Z⟩ at (3, 3) = -0.203 - 0.001355im, norm = -0.07289680268167 + 0.0904876847883235im 
+
+Time: 18:12:04->
+CTM iteration 2, convergence error = 2.639e-5
+
+Time: 18:12:04->⟨Z⟩ at (3, 3) = -0.2031 - 0.001352im, norm = 0.08277696427275948 + 0.08155134602295067im 
+
+Time: 18:12:04->
+!!! CTM converged !!!

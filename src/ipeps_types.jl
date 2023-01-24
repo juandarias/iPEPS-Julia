@@ -91,7 +91,7 @@ function Tensor{T}(D::Vector{Int64}, symmetry::X = UNDEF) where {T<:Union{Float6
 end
 
 #Dummy struct for bra tensors
-mutable struct BTensor end
+mutable struct BraTensor end
 
 mutable struct SimpleUpdateTensor{T<:Union{Float64, ComplexF64}}
     "The last dimension corresponds to the physical space"
@@ -336,13 +336,13 @@ function UnitCell(R_cell::Array{ReducedTensor{T}},
     UnitCell(D, dims, pattern, symmetry, R_cell, A_cell)
 end
 
-function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T<:Union{Tensor, BTensor, ReducedTensor, Environment}}
+function (uc::UnitCell)(::Type{T}, loc::CartesianIndex) where {T<:Union{Tensor, BraTensor, ReducedTensor, Environment}}
 
     loc = coord(loc, uc.dims);
 
     if T == Tensor
         return deepcopy(uc.A[loc])
-    elseif T == BTensor
+    elseif T == BraTensor
         return deepcopy(uc.B[loc])
     elseif T == ReducedTensor
         return deepcopy(uc.R[loc])
