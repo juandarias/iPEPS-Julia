@@ -15,12 +15,12 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
     i = 0;
     expval = 1.0;
 
-    do_ctmrg_iteration!(unitcell, projectors, Χ = simulation.Χ);
+    do_ctmrg_iteration!(unitcell, projectors, simulation);
     while ϵ > simulation.tol_ctm
         i += 1;
 
-        Eref = deepcopy(unitcell.E)
-        do_ctmrg_iteration!(unitcell, projectors, Χ = simulation.Χ);
+        Eref = deepcopy(unitcell.E) # copy of environment
+        do_ctmrg_iteration!(unitcell, projectors, simulation);
         ϵ = calculate_error_ctm(Eref, unitcell.E);
 
         log_message("\nCTM iteration $i, convergence error = $(round(abs(ϵ), sigdigits = 4))\n", color = :blue);
@@ -28,6 +28,9 @@ function update_environment!(unitcell::UnitCell, projectors::Projectors, simulat
         if simulation.ctm_convergence == Observable
             ref_expval = copy(expval);
             expval, n = calculate_error_ctm(unitcell, simulation)
+
+            log_message("$(simulation.observables[1].name) at $(Tuple(simulation.observables[1].loc[1])) = $(round(expval, sigdigits=4)), norm = $(round(n, sigdigits = 4)) \n", color = :blue);
+
 
             if abs((ref_expval - expval)/expval) < simulation.tol_expval
                 log_message("\n!!! CTM converged !!!\n", color = :green)
@@ -70,7 +73,7 @@ end
 """
 function do_ctmrg_iteration!(
     unitcell::UnitCell{T},
-    projectors::Projectors{EachMove}; Χ::Int64=0) where {T<:Union{Float64, ComplexF64}}
+    projectors::Projectors{EachMove}, simulation::Simulation) where {T<:Union{Float64, ComplexF64}}
 
     Ni = unitcell.dims[1]; # y-axis
     Nj = unitcell.dims[2]; # x-axis
@@ -89,7 +92,7 @@ function do_ctmrg_iteration!(
             # 1) Calculate all projectors along the column, i.e. all P_(i, j+n) for fixed j+n
             for i ∈ 0:Ni-1
                 loc = coord(ij + (i, j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, LEFT, Χ=Χ); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, LEFT, simulation); # P_(i,j)
             end
 
             # 2) Absorb column j+n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
@@ -115,7 +118,7 @@ function do_ctmrg_iteration!(
             # 1) Calculate all projectors for the column, i.e. all P_(i, j+n) for fixed j+n
             for i ∈ 0:Ni-1
                 loc = coord(ij + (i, -j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, RIGHT, Χ=Χ); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, RIGHT, simulation); # P_(i,j)
             end
 
             # 2) Absorb column j-n tensors in environment tensors of all tensors (i,j) with fixed j and renormalize
@@ -141,7 +144,7 @@ function do_ctmrg_iteration!(
             # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
             for j ∈ 0:Nj-1
                 loc = coord(ij + (i, j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, UP, Χ=Χ); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, UP, simulation); # P_(i,j)
             end
 
             # 2) Absorb row i+n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
@@ -167,7 +170,7 @@ function do_ctmrg_iteration!(
             # 1) Calculate all projectors for the row, i.e. all P_(i+n, j) for fixed i+n
             for j ∈ 0:Nj-1
                 loc = coord(ij + (-i, j), unitcell.dims);
-                calculate_projectors_ctmrg!(unitcell, projectors, loc, DOWN, Χ=Χ); # P_(i,j)
+                calculate_projectors_ctmrg!(unitcell, projectors, loc, DOWN, simulation); # P_(i,j)
             end
 
             # 2) Absorb row i-n tensors in environment tensors of all tensors (i,j) with fixed i and renormalize
@@ -362,18 +365,18 @@ end
                         \|-- bra (3)
 
 """ =#
-function projectors_half_system(Qa::Array{T, 6}, Qb::Array{T, 6}, Χ::Int64) where {T<:Union{Float64, ComplexF64}}
+function projectors_half_system(Qa::Array{T, 6}, Qb::Array{T, 6}, simulation::Simulation) where {T<:Union{Float64, ComplexF64}}
     @tensor rho[lde, ldk, ldb, rde, rdk, rdb] := Qa[lde, ldk, ldb, α, β, γ] * Qb[α, β, γ, rde, rdk, rdb];
 
     # Calculate projectors
-    U, S, Vt = tensor_svd(rho, [[1,2,3], [4,5,6]], Χ = Χ, full_svd = false);
+    U, S, Vt = tensor_svd(rho, [[1,2,3], [4,5,6]], Χ = simulation.Χ, full_svd = simulation.full_svd);
     Sinvsqrt = diagm(S.^(-1/2));
 
     @tensor P̃[le, lk, lb, re] := Qb[le, lk, lb, α, β, γ] * Vt[δ, α, β, γ] * Sinvsqrt[δ, re];
     @tensor P[re, rk, rb, le] := Sinvsqrt[le, δ] * conj(U)[α, β, γ, δ] * Qa[α, β, γ, re, rk, rb];
 
     # Spectra of half-system
-    S_f = zeros(Χ);
+    S_f = zeros(simulation.Χ);
     S_f[1:length(S)] = S/maximum(S);
 
     return P̃, P, S_f
@@ -385,8 +388,7 @@ function calculate_projectors_ctmrg!(
     uc::UnitCell,
     projectors::Projectors,
     loc::CartesianIndex,
-    direction::Direction;
-    Χ::Int64=0)
+    direction::Direction, simulation::Simulation)
 
     if direction == UP
 
@@ -427,8 +429,8 @@ function calculate_projectors_ctmrg!(
         #return Q4, Q1
 
         # Calculate projectors
-        Χ == 0 && (Χ = size(uc(Environment, loc).T[1], 1);)
-        P̃, P, S_f = projectors_half_system(Q4, Q1, Χ);
+        simulation.Χ == 0 && (Χ = size(uc(Environment, loc).T[1], 1);)
+        P̃, P, S_f = projectors_half_system(Q4, Q1, simulation);
         projectors.Pu[loc] = [P̃, P];
 
         # Save spectra
@@ -480,8 +482,8 @@ function calculate_projectors_ctmrg!(
         #return Q1, Q2
 
         ##### Calculate projectors #####
-        Χ == 0 && (Χ = size(uc(Environment, loc).T[2], 2);)
-        P̃, P, S_f = projectors_half_system(Q1, Q2, Χ);
+        simulation.Χ == 0 && (Χ = size(uc(Environment, loc).T[2], 2);)
+        P̃, P, S_f = projectors_half_system(Q1, Q2, simulation);
         projectors.Pr[loc] = [P̃, P];
 
         # Save spectra
@@ -522,8 +524,8 @@ function calculate_projectors_ctmrg!(
         @tensor Q2[le, lk, lb, ue, uk, ub] := C2[α, β] * T2[ue, α, γ, ξ] * T3[β, le, δ, θ] * A[uk, γ, δ, lk, p] * conj(B)[ub, ξ, θ, lb, p];
 
         ##### Calculate projectors #####
-        Χ == 0 && (Χ = size(uc(Environment, loc).T[3], 1);)
-        P̃, P, S_f = projectors_half_system(Q3, Q2, Χ);
+        simulation.Χ == 0 && (Χ = size(uc(Environment, loc).T[3], 1);)
+        P̃, P, S_f = projectors_half_system(Q3, Q2, simulation);
         projectors.Pd[loc] = [P̃, P];
 
         # Save spectra
@@ -572,8 +574,8 @@ function calculate_projectors_ctmrg!(
 
 
         ##### Calculate projectors #####
-        Χ == 0 && (Χ = size(uc(Environment, loc).T[4], 2);)
-        P̃, P, S_f = projectors_half_system(Q4, Q3, Χ);
+        simulation.Χ == 0 && (Χ = size(uc(Environment, loc).T[4], 2);)
+        P̃, P, S_f = projectors_half_system(Q4, Q3, simulation);
         projectors.Pl[loc] = [P̃, P];
 
         # Save spectra
@@ -641,13 +643,10 @@ function calculate_error_ctm(unitcell::UnitCell, simulation::Simulation)
 
     O = simulation.observables[1].O;
     loc = simulation.observables[1].loc[1];
-    name_O = simulation.observables[1].name;
 
     rho = calculate_rdm(unitcell, loc);
     n = tr(rho);
     @tensor expval = (1/n) * rho[α, β] * O[α, β]
-
-    log_message("$name_O at $(Tuple(loc)) = $(round(expval, sigdigits=4)), norm = $(round(n, sigdigits = 4)) \n", color = :blue);
 
     if length(simulation.observables) > 1
         @assert "Not implemented yet"

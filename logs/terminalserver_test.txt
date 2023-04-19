@@ -1007,3 +1007,6 @@ Time: 18:12:04->⟨Z⟩ at (3, 3) = -0.2031 - 0.001352im, norm = 0.0827769642727
 
 Time: 18:12:04->
 !!! CTM converged !!!
+
+Time: 14:47:49->
+CTM iteration 1, convergence error = 4.966e-14

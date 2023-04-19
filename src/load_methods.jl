@@ -8,7 +8,7 @@ function load_sutensor_matlab(folder, filename)
     return SimpleUpdateTensor(S, [wv, wh, wv, wh])
 end
 
-function load_ctm_matlab(filepath, cell_size; load_environment::Bool = true)
+function load_ctm_matlab(filepath, target_cell_size; load_environment::Bool = true)
 
     """
     Convention axis and indices in unit-cell
@@ -21,54 +21,88 @@ function load_ctm_matlab(filepath, cell_size; load_environment::Bool = true)
 
     """
     psi_c = h5open(filepath);
-    As = Array{Tensor{ComplexF64}}(undef, cell_size);
-    Rs = Array{ReducedTensor{ComplexF64}}(undef, cell_size);
-    Es = Array{Environment{ComplexF64}}(undef, cell_size);
+    original_cell_size = read(psi_c["cell_size"]);
+
+    As = Array{Tensor{ComplexF64}}(undef, target_cell_size);
+    Rs = Array{ReducedTensor{ComplexF64}}(undef, target_cell_size);
+    Es = Array{Environment{ComplexF64}}(undef, target_cell_size);
     #whs = []; wvs = [];
 
-    for x ∈ 1:cell_size[1] , y ∈ 1:cell_size[2]
-
+    if original_cell_size == [1 1]
         # Read cell tensors
-        Re_A = permutedims(read(psi_c["Re_x$(x)y$(y)/A"]), (3, 2, 5, 4, 1));
-        Im_A = permutedims(read(psi_c["Im_x$(x)y$(y)/A"]), (3, 2, 5, 4, 1));
+        Re_A = permutedims(read(psi_c["Re_x1y1/A"]), (3, 2, 5, 4, 1));
+        Im_A = permutedims(read(psi_c["Im_x1y1/A"]), (3, 2, 5, 4, 1));
         A = Tensor(Re_A + im * Im_A)
         rA = cast_tensor(ReducedTensor, A;  renormalize = false);
-
-        #= # SU tensors: first remove weights from tensor
-        A0W = SimpleUpdateTensor(A.A, [wv_inv, wh_inv, wv_inv, wh_inv]);
-        A0 = cast_tensor(Tensor, A0W);
-        S = SimpleUpdateTensor(normalize(A0.A), [wv, wh, wv, wh]); =#
-
-        #= # Read SU weights
-        wh = ComplexF64.(diag(read(psi_c["x$(i)y$(j)/wh"])));
-        wh_inv = 1 ./wh;
-
-        push!(whs, wh);
-        wv = ComplexF64.(diag(read(psi_c["x$(i)y$(j)/wv"])));
-        wv_inv = 1 ./wv;
-
-        push!(wvs, wv);
- =#
-
-        As[y, x] = A;
-        #Ss[i, j] = S;
-        Rs[y, x] = rA;
 
         # Read environment
         if load_environment == true
             Cs = Matrix{ComplexF64}[];
             Ts = Array{ComplexF64, 4}[];
             for m ∈ 1:4
-                Re_Cm = read(psi_c["Re_x$(x)y$(y)/C$m"])
-                Im_Cm = read(psi_c["Im_x$(x)y$(y)/C$m"])
+                Re_Cm = read(psi_c["Re_x1y1/C$m"])
+                Im_Cm = read(psi_c["Im_x1y1/C$m"])
                 push!(Cs, Re_Cm + im * Im_Cm);
-                Re_Tibk = read(psi_c["Re_x$(x)y$(y)/T$m"]);
-                Im_Tibk = read(psi_c["Im_x$(x)y$(y)/T$m"]);
+                Re_Tibk = read(psi_c["Re_x1y1/T$m"]);
+                Im_Tibk = read(psi_c["Im_x1y1/T$m"]);
                 Ti = Re_Tibk + im * Im_Tibk;
                 push!(Ts, Ti);
             end
-            E = Environment(Cs, Ts, CartesianIndex(y, x));
-            Es[y, x] = E
+        end
+
+        for x ∈ 1:target_cell_size[1] , y ∈ 1:target_cell_size[2]
+            As[y, x] = A;
+            Rs[y, x] = rA;
+            if load_environment == true
+                E = Environment(Cs, Ts, CartesianIndex(y, x));
+                Es[y, x] = E
+            end
+        end
+    else
+        for x ∈ 1:target_cell_size[1] , y ∈ 1:target_cell_size[2]
+
+            # Read cell tensors
+            Re_A = permutedims(read(psi_c["Re_x$(x)y$(y)/A"]), (3, 2, 5, 4, 1));
+            Im_A = permutedims(read(psi_c["Im_x$(x)y$(y)/A"]), (3, 2, 5, 4, 1));
+            A = Tensor(Re_A + im * Im_A)
+            rA = cast_tensor(ReducedTensor, A;  renormalize = false);
+
+            #= # SU tensors: first remove weights from tensor
+            A0W = SimpleUpdateTensor(A.A, [wv_inv, wh_inv, wv_inv, wh_inv]);
+            A0 = cast_tensor(Tensor, A0W);
+            S = SimpleUpdateTensor(normalize(A0.A), [wv, wh, wv, wh]); =#
+
+            #= # Read SU weights
+            wh = ComplexF64.(diag(read(psi_c["x$(i)y$(j)/wh"])));
+            wh_inv = 1 ./wh;
+
+            push!(whs, wh);
+            wv = ComplexF64.(diag(read(psi_c["x$(i)y$(j)/wv"])));
+            wv_inv = 1 ./wv;
+
+            push!(wvs, wv);
+    =#
+
+            As[y, x] = A;
+            #Ss[i, j] = S;
+            Rs[y, x] = rA;
+
+            # Read environment
+            if load_environment == true
+                Cs = Matrix{ComplexF64}[];
+                Ts = Array{ComplexF64, 4}[];
+                for m ∈ 1:4
+                    Re_Cm = read(psi_c["Re_x$(x)y$(y)/C$m"])
+                    Im_Cm = read(psi_c["Im_x$(x)y$(y)/C$m"])
+                    push!(Cs, Re_Cm + im * Im_Cm);
+                    Re_Tibk = read(psi_c["Re_x$(x)y$(y)/T$m"]);
+                    Im_Tibk = read(psi_c["Im_x$(x)y$(y)/T$m"]);
+                    Ti = Re_Tibk + im * Im_Tibk;
+                    push!(Ts, Ti);
+                end
+                E = Environment(Cs, Ts, CartesianIndex(y, x));
+                Es[y, x] = E
+            end
         end
     end
 

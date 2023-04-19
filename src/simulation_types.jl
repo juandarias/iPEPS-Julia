@@ -41,11 +41,13 @@ mutable struct GENERIC_CTM <: Simulation
 
     ctm_type # Type of renormalization for CTM
     Χ::Int64
-    ctm_convergence::Convergence # Convergence criteria for CTM
+    #ctm_convergence<:Convergence # Convergence criteria for CTM
+    ctm_convergence # Convergence criteria for CTM
     max_ctm_steps::Int64
     tol_ctm::Float64
     tol_expval::Float64
     tol_energy::Float64
+    full_svd::Bool
 
     #= Output =#
     conv_ctm_steps::Int64 # Number of CTM steps used for convergence

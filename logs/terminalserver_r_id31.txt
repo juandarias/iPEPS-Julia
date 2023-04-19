@@ -1,0 +1,16 @@
+
+Time: 14:57:41->
+ ##### Parameters #####
+
+Time: 14:57:41->
+"steps" => 10, "tol_ctm" => 1.0e-12, "op_loc" => (3, 3), "dt" => 0.01, "conv_obs" => true, "h" => 2.5, "Dt" => 4, "datastore" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/", "ID" => "r_id31", "outfolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/data/Ising/", "infolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/", "tol_expval" => 0.001, "SC" => 5, "Chi" => 50, "ctm_steps" => 20, "step_end" => 5, "step_start" => 1, "D0" => 3, "Chi0" => 50
+
+Time: 14:57:46->
+ Initial state: /mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/5x5/Psi0_VU_5x5_B2.5_D3_X40.h5 
+Time: 14:58:01-> -> Loaded 
+
+Time: 15:03:04->
+Loaded state 5x5_B2.5_D03_Dt4_X50_t0.01 
+
+Time: 15:03:09->
+Reconverging environment

@@ -1,0 +1,81 @@
+
+Time: 15:04:45->
+ ##### Parameters #####
+
+Time: 15:04:45->
+"steps" => 10, "tol_ctm" => 1.0e-12, "op_loc" => (3, 3), "dt" => 0.01, "conv_obs" => true, "h" => 2.5, "Dt" => 4, "datastore" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/", "ID" => "r_id39", "outfolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/data/Ising/", "infolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/", "tol_expval" => 0.001, "SC" => 5, "Chi" => 50, "ctm_steps" => 20, "step_end" => 5, "step_start" => 1, "D0" => 3, "Chi0" => 50
+
+Time: 15:04:46->
+ Initial state: /mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/5x5/Psi0_VU_5x5_B2.5_D3_X40.h5 
+Time: 15:05:01-> -> Loaded 
+
+Time: 15:09:36->
+Loaded state 5x5_B2.5_D03_Dt4_X50_t0.01 
+
+Time: 15:09:41->
+Reconverging environment
+
+Time: 15:25:03->
+CTM iteration 1, convergence error = 1.803
+
+Time: 15:25:08->⟨Z⟩ at (3, 3) = -0.6023 + 0.2048im, norm = -1.223e-5 + 1.066e-5im 
+
+Time: 15:33:35->
+CTM iteration 2, convergence error = 1.89
+
+Time: 15:33:35->⟨Z⟩ at (3, 3) = 0.321 + 0.06334im, norm = 1.998e-5 + 2.397e-5im 
+
+Time: 15:42:05->
+CTM iteration 3, convergence error = 1.577
+
+Time: 15:42:05->⟨Z⟩ at (3, 3) = -2.041 - 0.09395im, norm = 1.235e-5 - 1.482e-6im 
+
+Time: 15:50:37->
+CTM iteration 4, convergence error = 1.418
+
+Time: 15:50:37->⟨Z⟩ at (3, 3) = -0.2624 + 0.06325im, norm = -2.487e-5 + 6.875e-6im 
+
+Time: 15:59:31->
+CTM iteration 5, convergence error = 1.588
+
+Time: 15:59:31->⟨Z⟩ at (3, 3) = -0.006545 - 0.2445im, norm = -1.373e-5 + 1.638e-6im 
+
+Time: 16:08:23->
+CTM iteration 6, convergence error = 1.321
+
+Time: 16:08:23->⟨Z⟩ at (3, 3) = -0.08711 + 0.0767im, norm = -1.685e-6 + 3.083e-5im 
+
+Time: 16:18:54->
+CTM iteration 7, convergence error = 1.447
+
+Time: 16:18:54->⟨Z⟩ at (3, 3) = -0.4735 + 0.2445im, norm = -5.548e-8 + 8.049e-6im 
+
+Time: 16:28:07->
+CTM iteration 8, convergence error = 1.258
+
+Time: 16:28:07->⟨Z⟩ at (3, 3) = -0.1629 + 0.009191im, norm = -5.887e-5 + 6.45e-5im 
+
+Time: 16:38:24->
+CTM iteration 9, convergence error = 1.247
+
+Time: 16:38:25->⟨Z⟩ at (3, 3) = 0.1193 + 0.1003im, norm = 5.265e-6 + 6.294e-6im 
+
+Time: 16:50:08->
+CTM iteration 10, convergence error = 1.475
+
+Time: 16:50:08->⟨Z⟩ at (3, 3) = -0.03601 + 0.08889im, norm = 3.127e-5 - 3.928e-6im 
+
+Time: 17:02:21->
+CTM iteration 11, convergence error = 1.401
+
+Time: 17:02:22->⟨Z⟩ at (3, 3) = -0.3289 + 0.02537im, norm = 1.322e-5 - 3.134e-5im 
+
+Time: 17:16:32->
+CTM iteration 12, convergence error = 1.286
+
+Time: 17:16:32->⟨Z⟩ at (3, 3) = -0.1429 + 0.006517im, norm = 5.052e-7 - 1.151e-5im 
+
+Time: 17:25:51->
+CTM iteration 13, convergence error = 1.075
+
+Time: 17:25:51->⟨Z⟩ at (3, 3) = -0.3188 + 0.04826im, norm = 2.38e-5 - 1.077e-5im 

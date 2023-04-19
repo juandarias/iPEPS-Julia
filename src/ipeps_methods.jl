@@ -139,7 +139,9 @@ function generate_isometries_overlap!(isos::Projectors{BraKetOverlap}, state::Un
 
             sqrtS = sqrt(S[1]);
             IA = U[:, 1] * sqrtS; #legs: 1:in, 2:out
-            IA = reshape(IA, (state.D, :)); #legs: (1)ket, (2)bra
+
+            #! ↓ superfluos line, dims should be right
+            # IA = reshape(IA, (state.D, :)); #legs: (1)ket, (2)bra
 
             Id = diagm(ones(size(IA, 1)));
 

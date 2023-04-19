@@ -1,0 +1,9 @@
+
+Time: 14:13:32->
+ ##### Parameters #####
+
+Time: 14:13:33->
+"steps" => 10, "tol_ctm" => 1.0e-12, "op_loc" => (3, 3), "dt" => 0.01, "conv_obs" => true, "h" => 2.5, "Dt" => 4, "datastore" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/", "ID" => "r_id18", "outfolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/data/Ising/", "infolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/", "tol_expval" => 0.001, "SC" => "3", "Chi" => 50, "ctm_steps" => 2, "step_end" => 5, "step_start" => 1, "D0" => 3, "Chi0" => 50
+
+Time: 14:13:33->
+ Initial state: /mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/3x3/Psi0_VU_1x1_B2.5_D3_X40.h5 

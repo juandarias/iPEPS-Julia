@@ -5,6 +5,8 @@ module ipeps_ctm
     # Modules #
     ###########
 
+    using SnoopPrecompile
+
     import LinearAlgebra: svd, qr, norm, opnorm, tr, diagm, normalize, Hermitian, eigen, normalize!, SVD
     import Base: +
     #import IterativeSolvers: svdl
@@ -29,6 +31,7 @@ module ipeps_ctm
     #= Other types =#
     export Simulation
     export Hamiltonian
+    export GENERIC_CTM, GROUNDSTATE_SU
 
     #= iPEPS types =#
     export Tensor, SimpleUpdateTensor, ReducedTensor, BraTensor
@@ -84,7 +87,7 @@ module ipeps_ctm
     #= Types =#
     include("./ipeps_types.jl")
     include("./CTM_types.jl")
-    #include("./simulation_types.jl")
+    include("./simulation_types.jl")
 
     #= Methods =#
     include("./tensor_methods.jl")
@@ -101,7 +104,24 @@ module ipeps_ctm
     ##########
     #@precompile_signatures(ipeps_ctm)
 
-    include("precompiles.jl")
-    _precompile_();
+    #include("precompiles.jl")
+    #_precompile_();
+    @precompile_all_calls begin
+        ctm = GENERIC_CTM()
+        ctm.Χ = 10;
+        ctm.max_ctm_steps = 1;
+        ctm.tol_ctm = 1e-10;
+        ctm.full_svd = true
+        ctm.ctm_convergence = Observable
+        Sz_op = Operator(0.5*[1.0 0.0 ; 0.0 -1.0], [(1,1)]);
+        Sz_op.name = "⟨Z⟩";
+        ctm.observables = [Sz_op];
+
+        pattern = ['a' 'b'; 'c' 'd'];
+        uc = UnitCell{Float64}(2, (2, 2), pattern, UNDEF);
+        initialize_environment!(uc);
+        projectors = Projectors{EachMove}(uc);
+        update_environment!(uc, projectors, ctm);
+    end
 
 end

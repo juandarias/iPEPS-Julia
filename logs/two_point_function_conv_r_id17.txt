@@ -1,0 +1,38 @@
+
+Time: 17:23:49->
+ ##### Parameters #####
+Time: 17:23:50->
+"steps" => 10, "tol_ctm" => 1.0e-12, "op_loc" => (2, 2), "dt" => 0.01, "conv_obs" => true, "h" => 2.5, "Dt" => 4, "datastore" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/", "ID" => "r_id17", "outfolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/data/Ising/", "infolder" => "/mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/", "tol_expval" => 0.001, "SC" => "3", "Chi" => "40", "ctm_steps" => "5", "step_end" => 5, "step_start" => 1, "D0" => 3, "Chi0" => 50
+
+Time: 17:23:50->
+Initial state: /mnt/c/Users/Juan/surfdrive/QuantumSimulationPhD/Code/iPEPS-Julia/input/Ising/3x3/Psi0_VU_1x1_B2.5_D3_X40.h5 
+Time: 17:24:06-> -> Loaded 
+
+Time: 17:24:06->
+Loaded state: 3x3_B2.5_D03_Dt4_X40_t0.01 
+
+Time: 17:24:36->
+Reconverging environment
+
+Time: 17:30:04->
+CTM iteration 1, convergence error = 0.008842
+
+Time: 17:30:10->⟨Z⟩ at (2, 2) = -0.018 + 0.1435im, norm = -0.2797 - 0.09738im 
+
+Time: 17:31:11->
+CTM iteration 2, convergence error = 0.002359
+
+Time: 17:31:11->⟨Z⟩ at (2, 2) = -0.01434 + 0.1441im, norm = -0.03759 - 0.28im 
+
+Time: 17:32:11->
+CTM iteration 3, convergence error = 0.0006533
+
+Time: 17:32:11->⟨Z⟩ at (2, 2) = -0.01406 + 0.1442im, norm = 0.2458 + 0.1301im 
+
+Time: 17:33:11->
+CTM iteration 4, convergence error = 0.0001936
+
+Time: 17:33:11->⟨Z⟩ at (2, 2) = -0.01393 + 0.1443im, norm = -0.007023 + 0.275im 
+
+Time: 17:33:11->
+!!! CTM converged !!!
